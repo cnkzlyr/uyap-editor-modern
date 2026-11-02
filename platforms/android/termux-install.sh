@@ -1,21 +1,21 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ==============================================================================
 # UYAP Editör Modern - Android Tablet / Telefon Kurulum Betiği
-# Termux + Termux:X11 Üzerinde Tam Masaüstü UYAP Editörü
+# Termux + Termux:X11 + Fluxbox Üzerinde 120Hz Akıcı Masaüstü UYAP Editörü
 # ==============================================================================
 
 set -e
 
 echo "=== Android UYAP Editör Modern Kurulumu ==="
 
-# 1. Gerekli paketleri güncelle ve yükle
+# 1. Gerekli paketleri güncelle ve yükle (Fluxbox pencere yöneticisi dahil)
 pkg update -y
 pkg install -y x11-repo wget tar unzip
 pkg update -y
-pkg install -y openjdk-17 termux-x11-nightly pulseaudio
+pkg install -y openjdk-17 termux-x11-nightly pulseaudio fluxbox
 
 # 2. Çalışma klasörü oluştur
-mkdir -p ~/uyap-editor
+mkdir -p ~/uyap-editor ~/.uki
 cd ~/uyap-editor
 
 # 3. UYAP Editör paketini indir ve aç
@@ -32,7 +32,11 @@ if [ ! -f "editor_lib.jar" ]; then
     rm -rf usr cups-bsd* uyapeditor* data.tar.* control.tar.* debian-binary 2>/dev/null || true
 fi
 
-# Java sürüm kontrolü kilidini kaldır (UYAP'ın yapay 'Sürümünüz 6 ila 14 Arasında Olmalı' sınırını aşar)
+# 4. Modernizasyon Kütüphanesini (FlatLaf, 120Hz Smooth Scroll, Modern UI) İndir
+echo "Modernizasyon kütüphanesi (120Hz Smooth Scroll & FlatLaf) indiriliyor..."
+curl -sL -o ~/uyap-editor/uyap-modernizer.jar "https://raw.githubusercontent.com/cnkzlyr/uyap-editor-modern/main/dist/uyap-modernizer.jar"
+
+# 5. Java sürüm kontrolü kilidini kaldır (UYAP'ın yapay 'Sürümünüz 6 ila 14 Arasında Olmalı' sınırını aşar)
 cat << 'P_EOF' > ~/uyap-editor/Patch.java
 import java.io.*;
 import java.util.*;
@@ -75,7 +79,16 @@ public class Patch {
 P_EOF
 cd ~/uyap-editor && java Patch.java 2>/dev/null && rm -f Patch.java
 
-# 4. Android başlatıcı betiği oluştur
+# 6. 120Hz & FlatLaf Yapılandırmasını Kaydet
+cat << 'C_EOF' > ~/.uki/modernizer.properties
+smoothScroll=true
+targetHz=120
+scrollStep=70.0
+scrollDecay=14.0
+theme=flat-light
+C_EOF
+
+# 7. Android başlatıcı betiği oluştur (Fluxbox WM ile birlikte)
 cat << 'EOF' > ~/uyap-editor/run-android.sh
 #!/data/data/com.termux/files/usr/bin/bash
 export DISPLAY=:0
@@ -89,9 +102,19 @@ fi
 am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity 2>/dev/null || true
 sleep 1
 
+# Fluxbox Pencere Yöneticisini Başlat (Pencere başlıkları, taşıma, tam ekran, görev çubuğu)
+if ! pgrep -f "fluxbox" >/dev/null; then
+    fluxbox >/dev/null 2>&1 &
+    sleep 1
+fi
+
 cd ~/uyap-editor
-CP="."
-for j in *.jar; do CP="$CP:$j"; done
+CP="uyap-modernizer.jar:."
+for j in *.jar; do
+    if [ "$j" != "uyap-modernizer.jar" ]; then
+        CP="$CP:$j"
+    fi
+done
 
 java --add-opens java.base/java.lang=ALL-UNNAMED \
      --add-opens java.base/java.lang.reflect=ALL-UNNAMED \
@@ -105,7 +128,8 @@ java --add-opens java.base/java.lang=ALL-UNNAMED \
      --add-opens java.desktop/sun.awt=ALL-UNNAMED \
      --add-opens java.desktop/sun.swing=ALL-UNNAMED \
      --add-opens java.desktop/sun.font=ALL-UNNAMED \
-     -Xms128m -Xmx768m \
+     -javaagent:uyap-modernizer.jar \
+     -Xms128m -Xmx1024m \
      -Dsun.java2d.uiScale=1.25 \
      -Dawt.useSystemAAFontSettings=on \
      -Dswing.aatext=true \
