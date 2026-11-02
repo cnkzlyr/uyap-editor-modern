@@ -53,10 +53,13 @@ for j in *.jar; do CP="$CP:$j"; done
 java --add-opens java.base/java.lang=ALL-UNNAMED \
      --add-opens java.base/java.lang.reflect=ALL-UNNAMED \
      --add-opens java.base/java.util=ALL-UNNAMED \
+     --add-opens java.base/java.text=ALL-UNNAMED \
      --add-opens java.desktop/java.awt=ALL-UNNAMED \
+     --add-opens java.desktop/java.awt.font=ALL-UNNAMED \
      --add-opens java.desktop/javax.swing=ALL-UNNAMED \
      --add-opens java.desktop/sun.awt=ALL-UNNAMED \
      --add-opens java.desktop/sun.swing=ALL-UNNAMED \
+     --add-opens java.desktop/sun.font=ALL-UNNAMED \
      -Xms128m -Xmx768m \
      -Dsun.java2d.uiScale=1.25 \
      -Dawt.useSystemAAFontSettings=on \
