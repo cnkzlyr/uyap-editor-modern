@@ -20,10 +20,16 @@ cd ~/uyap-editor
 
 # 3. UYAP Editör paketini indir ve aç
 if [ ! -f "editor_lib.jar" ]; then
-    echo "UYAP Editör dosyaları indiriliyor..."
+    echo "UYAP Editör paketleri indiriliyor..."
     wget -c -O uyap.zip "https://rayp.adalet.gov.tr/resimler/2/dosya/uyapeditor_5.4.20_amd64.zip"
     unzip -q -o uyap.zip
     rm -f uyap.zip
+    
+    echo "DEB paketi açılıyor..."
+    dpkg -x uyapeditor_5.4.20_amd64.deb . 2>/dev/null || (ar -x uyapeditor_5.4.20_amd64.deb && tar -xf data.tar.*)
+    mv usr/share/UYAPEditor/*.jar .
+    [ -d "usr/share/UYAPEditor/images" ] && mv usr/share/UYAPEditor/images .
+    rm -rf usr cups-bsd* uyapeditor* data.tar.* control.tar.* debian-binary 2>/dev/null || true
 fi
 
 # 4. Android başlatıcı betiği oluştur
@@ -34,7 +40,7 @@ export PULSE_SERVER=127.0.0.1
 
 # X11 Sunucusu ve Ekranı Başlat
 if ! pgrep -f "termux-x11" >/dev/null; then
-    termux-x11 :0 &
+    termux-x11 :0 >/dev/null 2>&1 &
     sleep 1
 fi
 am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity 2>/dev/null || true
@@ -44,7 +50,14 @@ cd ~/uyap-editor
 CP="."
 for j in *.jar; do CP="$CP:$j"; done
 
-java -Xms128m -Xmx512m \
+java --add-opens java.base/java.lang=ALL-UNNAMED \
+     --add-opens java.base/java.lang.reflect=ALL-UNNAMED \
+     --add-opens java.base/java.util=ALL-UNNAMED \
+     --add-opens java.desktop/java.awt=ALL-UNNAMED \
+     --add-opens java.desktop/javax.swing=ALL-UNNAMED \
+     --add-opens java.desktop/sun.awt=ALL-UNNAMED \
+     --add-opens java.desktop/sun.swing=ALL-UNNAMED \
+     -Xms128m -Xmx768m \
      -Dsun.java2d.uiScale=1.25 \
      -Dawt.useSystemAAFontSettings=on \
      -Dswing.aatext=true \
