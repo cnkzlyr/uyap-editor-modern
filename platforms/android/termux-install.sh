@@ -32,6 +32,49 @@ if [ ! -f "editor_lib.jar" ]; then
     rm -rf usr cups-bsd* uyapeditor* data.tar.* control.tar.* debian-binary 2>/dev/null || true
 fi
 
+# Java sürüm kontrolü kilidini kaldır (UYAP'ın yapay 'Sürümünüz 6 ila 14 Arasında Olmalı' sınırını aşar)
+cat << 'P_EOF' > ~/uyap-editor/Patch.java
+import java.io.*;
+import java.util.*;
+import java.util.zip.*;
+
+public class Patch {
+    public static void main(String[] args) throws Exception {
+        File jar = new File("editor_lib.jar");
+        if (!jar.exists()) return;
+        File temp = new File("editor_lib_temp.jar");
+        byte[] oldB = new byte[]{ (byte)0xb8, 0, (byte)0xa6, 0x3b, 0x1a, 0x10, 0x06, (byte)0xa1, 0, 0x0b, 0x1a, 0x10, 0x0e, (byte)0xa3, 0, 0x05, 0x04, (byte)0xac, 0x03, (byte)0xac };
+        byte[] newB = new byte[]{ 0x04, (byte)0xac, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        try (ZipFile zin = new ZipFile(jar);
+             ZipOutputStream zout = new ZipOutputStream(new FileOutputStream(temp))) {
+            Enumeration<? extends ZipEntry> en = zin.entries();
+            while (en.hasMoreElements()) {
+                ZipEntry ze = en.nextElement();
+                zout.putNextEntry(new ZipEntry(ze.getName()));
+                byte[] data = zin.getInputStream(ze).readAllBytes();
+                if (ze.getName().endsWith("WPAppManager.class")) {
+                    for (int i = 0; i <= data.length - oldB.length; i++) {
+                        boolean match = true;
+                        for (int j = 0; j < oldB.length; j++) {
+                            if (data[i + j] != oldB[j]) { match = false; break; }
+                        }
+                        if (match) {
+                            System.arraycopy(newB, 0, data, i, newB.length);
+                            break;
+                        }
+                    }
+                }
+                zout.write(data);
+                zout.closeEntry();
+            }
+        }
+        jar.delete();
+        temp.renameTo(jar);
+    }
+}
+P_EOF
+cd ~/uyap-editor && java Patch.java 2>/dev/null && rm -f Patch.java
+
 # 4. Android başlatıcı betiği oluştur
 cat << 'EOF' > ~/uyap-editor/run-android.sh
 #!/data/data/com.termux/files/usr/bin/bash
