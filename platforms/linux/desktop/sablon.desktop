@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=UYAP Şablon Editörü Modern
+GenericName=Şablon Düzenleyici
+Comment=UYAP Şablon Editörü Modern (120Hz & E-İmza Entegre)
+Exec=uyap-sablon %F
+Icon=application-usf
+Terminal=false
+Type=Application
+Categories=Office;WordProcessor;
+MimeType=application/usf;application/x-usf;
+StartupWMClass=tr-com-havelsan-uyap-system-editor-common-WPAppManager

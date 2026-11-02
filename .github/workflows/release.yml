@@ -1,0 +1,86 @@
+name: Build and Release UYAP Editor Modern
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build Modernizer Agent JAR
+        run: |
+          chmod +x tools/build-agent.sh
+          ./tools/build-agent.sh
+
+      - name: Download Upstream UYAP and Runtimes
+        run: |
+          mkdir -p build/upstream
+          echo "Resmi paketler indiriliyor..."
+          curl -sL -o build/upstream/uyap_linux.zip "https://rayp.adalet.gov.tr/resimler/2/dosya/uyapeditor_5.4.20_amd64.zip" || true
+          curl -sL -o build/upstream/uyap_mac_arm64.zip "https://rayp.adalet.gov.tr/resimler/2/dosya/UyapDokumanEditoru-AppleSilicon-5.4.21.zip" || true
+          curl -sL -o build/upstream/uyap_mac_intel.zip "https://rayp.adalet.gov.tr/resimler/2/dosya/UyapDokumanEditoru-Intel-5.4.21.zip" || true
+          curl -sL -o build/upstream/uyap_windows.msi "https://rayp.adalet.gov.tr/resimler/2/dosya/UKI_V5.4.20.msi" || true
+
+      - name: Package Multiplatform Releases
+        run: |
+          mkdir -p release-assets
+
+          # 1. Standalone Agent
+          cp dist/uyap-modernizer.jar release-assets/uyap-modernizer.jar
+
+          # 2. Linux Portable Paketi
+          mkdir -p pkg/linux
+          unzip -q -o build/upstream/uyap_linux.zip -d pkg/linux || true
+          cp dist/uyap-modernizer.jar pkg/linux/
+          cp platforms/linux/bin/* pkg/linux/
+          cp -r platforms/linux/desktop pkg/linux/
+          cp -r platforms/linux/drivers pkg/linux/
+          cp platforms/linux/install.sh pkg/linux/
+          chmod +x pkg/linux/*.sh
+          tar -czf release-assets/uyap-editor-modern-linux-x86_64.tar.gz -C pkg/linux .
+
+          # 3. Windows Portable Paketi
+          mkdir -p pkg/windows
+          cp dist/uyap-modernizer.jar pkg/windows/
+          cp platforms/windows/bin/* pkg/windows/
+          cp platforms/windows/install.ps1 pkg/windows/
+          zip -q -r release-assets/uyap-editor-modern-windows-x64.zip pkg/windows
+
+          # 4. macOS Paketi
+          mkdir -p pkg/macos
+          cp dist/uyap-modernizer.jar pkg/macos/
+          cp -r platforms/macos/* pkg/macos/
+          zip -q -r release-assets/uyap-editor-modern-macos.zip pkg/macos
+
+          ls -lh release-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: release-assets/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          title: "UYAP Editör Modern ${{ github.ref_name }}"
+          body: |
+            ### UYAP Editör Modern ${{ github.ref_name }} Yenilikleri
+            * **120Hz & 240Hz Akıcı Kaydırma (Smooth Scrolling):** Donanım ekran yenileme hızına duyarlı momentum kaydırma (`F9`).
+            * **Tam E-İmza & PKCS#11 Uyumluluğu:** Arkİmza (NES ECC) ve TBB Kırmızı Token (ACS ACR39U / TÜRKTRUST) otomatik algılama ve imzalama desteği.
+            * **Modern FlatLaf Arayüz Temaları:** Modern Açık, Koyu ve Sistem temaları.
+            * **Çoklu Platform:** Linux (Fedora/Ubuntu/Pardus/Arch), Windows 10/11, macOS (Intel & Apple Silicon) ve Android (Termux-X11) desteği.
