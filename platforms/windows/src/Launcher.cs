@@ -49,8 +49,9 @@ namespace UYAPLauncher
                 if (string.IsNullOrEmpty(sysRoot)) sysRoot = @"C:\Windows";
                 string pkcs11Opts = string.Format("-Djava.library.path=\"{0};{1}\\System32;{1}\\SysWOW64\"", baseDir, sysRoot);
 
-                // 4. UI ve Performans Parametreleri
+                // 4. UI, Donanim Ivmelendirme (OpenGL) ve Performans Parametreleri (120Hz/240Hz)
                 string fontOpts = "-Dawt.useSystemAAFontSettings=lcd -Dswing.aatext=true";
+                string accelOpts = "-Dsun.java2d.opengl=true -Dsun.java2d.d3d=false -Dsun.java2d.noddraw=true -Dsun.java2d.renderer=sun.java2d.marlin.MarlinRenderingEngine -XX:+ForceTimeHighResolution";
                 string memOpts = "-Xms256m -Xmx1024m -XX:+UseG1GC -XX:+UseStringDeduplication";
 
                 // 5. Profil ve Ayarlar (.uki)
@@ -79,6 +80,7 @@ namespace UYAPLauncher
                 sb.Append(pkcs11Opts).Append(" ");
                 sb.Append(memOpts).Append(" ");
                 sb.Append(fontOpts).Append(" ");
+                sb.Append(accelOpts).Append(" ");
                 if (!string.IsNullOrEmpty(agentOpt))
                 {
                     sb.Append(agentOpt).Append(" ");

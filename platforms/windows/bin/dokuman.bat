@@ -13,6 +13,8 @@ if exist "%~dp0uyap-modernizer.jar" (
     set "BASE_DIR=%~dp0"
 ) else if exist "%~dp0..\uyap-modernizer.jar" (
     set "BASE_DIR=%~dp0.."
+) else if exist "%LOCALAPPDATA%\Programs\UYAP Editor Modern\uyap-modernizer.jar" (
+    set "BASE_DIR=%LOCALAPPDATA%\Programs\UYAP Editor Modern"
 ) else if exist "%LOCALAPPDATA%\UYAPEditorModern\uyap-modernizer.jar" (
     set "BASE_DIR=%LOCALAPPDATA%\UYAPEditorModern"
 ) else (
@@ -23,6 +25,8 @@ if "%BASE_DIR:~-1%"=="\" set "BASE_DIR=%BASE_DIR:~0,-1%"
 :: Java 14.0.2 Tespiti
 if exist "%BASE_DIR%\jdk-14.0.2\bin\javaw.exe" (
     set "JAVA_CMD=%BASE_DIR%\jdk-14.0.2\bin\javaw.exe"
+) else if exist "%LOCALAPPDATA%\Programs\UYAP Editor Modern\jdk-14.0.2\bin\javaw.exe" (
+    set "JAVA_CMD=%LOCALAPPDATA%\Programs\UYAP Editor Modern\jdk-14.0.2\bin\javaw.exe"
 ) else if exist "%LOCALAPPDATA%\UYAPEditorModern\jdk-14.0.2\bin\javaw.exe" (
     set "JAVA_CMD=%LOCALAPPDATA%\UYAPEditorModern\jdk-14.0.2\bin\javaw.exe"
 ) else if defined JAVA_HOME if exist "%JAVA_HOME%\bin\javaw.exe" (
@@ -43,8 +47,9 @@ if exist "%BASE_DIR%\uyap-modernizer.jar" (
 :: E-Imza & Akilli Kart (Windows akisp11.dll & ArkSigner)
 set "PKCS11_OPTS=-Djava.library.path=%BASE_DIR%;%SystemRoot%\System32;%SystemRoot%\SysWOW64"
 
-:: UI & Performans Parametreleri
+:: UI, Donanim Ivmelendirme (OpenGL) ve 120Hz/240Hz Performans Parametreleri
 set "FONT_OPTS=-Dawt.useSystemAAFontSettings=lcd -Dswing.aatext=true"
+set "ACCEL_OPTS=-Dsun.java2d.opengl=true -Dsun.java2d.d3d=false -Dsun.java2d.noddraw=true -Dsun.java2d.renderer=sun.java2d.marlin.MarlinRenderingEngine -XX:+ForceTimeHighResolution"
 set "MEM_OPTS=-Xms256m -Xmx1024m -XX:+UseG1GC -XX:+UseStringDeduplication"
 
 :: Hedef dosya kontrolü ve tip tespiti (.usf şablon / .udf doküman)
@@ -52,7 +57,7 @@ set "TARGET=%~1"
 set "EDITOR_TYPE=EDITOR_TYPE_DOCUMENT"
 if defined TARGET (
     if /I "%TARGET:~-4%"==".usf" set "EDITOR_TYPE=EDITOR_TYPE_TEMPLATE"
-    start "" "%JAVA_CMD%" %PKCS11_OPTS% %MEM_OPTS% %FONT_OPTS% %AGENT_OPTS% -cp "%CP_PATH%" tr.com.havelsan.uyap.system.editor.common.WPAppManager "getNewWPInstance" !EDITOR_TYPE! "%TARGET%"
+    start "" "%JAVA_CMD%" %PKCS11_OPTS% %MEM_OPTS% %FONT_OPTS% %ACCEL_OPTS% %AGENT_OPTS% -cp "%CP_PATH%" tr.com.havelsan.uyap.system.editor.common.WPAppManager "getNewWPInstance" !EDITOR_TYPE! "%TARGET%"
 ) else (
-    start "" "%JAVA_CMD%" %PKCS11_OPTS% %MEM_OPTS% %FONT_OPTS% %AGENT_OPTS% -cp "%CP_PATH%" tr.com.havelsan.uyap.system.editor.common.WPAppManager "getNewWPInstance" "EDITOR_TYPE_DOCUMENT"
+    start "" "%JAVA_CMD%" %PKCS11_OPTS% %MEM_OPTS% %FONT_OPTS% %ACCEL_OPTS% %AGENT_OPTS% -cp "%CP_PATH%" tr.com.havelsan.uyap.system.editor.common.WPAppManager "getNewWPInstance" "EDITOR_TYPE_DOCUMENT"
 )

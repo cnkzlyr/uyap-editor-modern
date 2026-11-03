@@ -36,5 +36,19 @@ public class ThemeManager {
         System.setProperty("awt.useSystemAAFontSettings", "lcd");
         System.setProperty("swing.aatext", "true");
         System.setProperty("sun.java2d.renderer", "sun.java2d.marlin.MarlinRenderingEngine");
+
+        // Windows donanım ivmelendirmesi (Intel Arc / modern GPU donanım WGL OpenGL hızlandırma)
+        String os = System.getProperty("os.name", "").toLowerCase();
+        if (os.contains("win")) {
+            if (System.getProperty("sun.java2d.opengl") == null) {
+                System.setProperty("sun.java2d.opengl", "true");
+            }
+            if (System.getProperty("sun.java2d.d3d") == null) {
+                System.setProperty("sun.java2d.d3d", "false");
+            }
+            if (System.getProperty("sun.java2d.noddraw") == null) {
+                System.setProperty("sun.java2d.noddraw", "true");
+            }
+        }
     }
 }
