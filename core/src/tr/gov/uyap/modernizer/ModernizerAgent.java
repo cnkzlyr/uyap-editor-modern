@@ -28,6 +28,7 @@ public class ModernizerAgent {
         fixAwtAppClassName(appName);
 
         ThemeManager.initDisplayEnhancements();
+        ScrollBench.start();
 
         SwingUtilities.invokeLater(() -> {
             String cmd = System.getProperty("sun.java.command", "");

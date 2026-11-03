@@ -1,6 +1,7 @@
 package tr.gov.uyap.modernizer;
 
 import javax.swing.*;
+import java.awt.Component;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.util.Collections;
@@ -18,16 +19,8 @@ public class SmoothScroller implements MouseWheelListener {
     private static final Map<JScrollPane, SmoothScroller> activeScrollers =
             Collections.synchronizedMap(new WeakHashMap<>());
 
-    // Windows Direct3D grafik boru hattı ile uyumlu yüksek çözünürlüklü executor (120Hz - 240Hz)
-    private static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
-        Thread t = new Thread(r, "Modernizer-SmoothScroller");
-        t.setDaemon(true);
-        t.setPriority(Thread.MAX_PRIORITY);
-        return t;
-    });
-
     private final JScrollPane scrollPane;
-    private ScheduledFuture<?> animTask;
+    private PrecisionTicker.Handle animTask;
 
     private double animStartPos;
     private double animTargetPos;
@@ -49,7 +42,52 @@ public class SmoothScroller implements MouseWheelListener {
         JViewport vp = this.scrollPane.getViewport();
         if (vp != null) {
             vp.setScrollMode(JViewport.BLIT_SCROLL_MODE);
+            vp.addChangeListener(e -> attachView());
         }
+        attachView();
+        Timer sweeper = new Timer(750, e -> attachView());
+        sweeper.setRepeats(true);
+        sweeper.start();
+    }
+
+    // UYAP editor bileseni (text.t) kendi MouseWheelListener'ina sahip oldugu icin tekerlek olaylari
+    // ScrollPane'e hic ulasmiyordu. Bilesenin dinleyicilerini devralip Ctrl+tekerlek gibi
+    // islevleri orijinaline devrediyoruz.
+    private Component hookedView;
+    private final java.util.List<MouseWheelListener> delegates = new java.util.ArrayList<>();
+
+    private void attachView() {
+        JViewport vp = scrollPane.getViewport();
+        Component view = vp == null ? null : vp.getView();
+        if (view == null) return;
+        if (view != hookedView) {
+            detachView();
+            hookedView = view;
+            view.addMouseWheelListener(this);
+        }
+        sweepListeners();
+    }
+
+    private void sweepListeners() {
+        Component view = hookedView;
+        if (view == null) return;
+        boolean foreign = false;
+        for (MouseWheelListener l : view.getMouseWheelListeners()) {
+            if (l == this || delegates.contains(l)) {
+                if (l != this) view.removeMouseWheelListener(l);
+                continue;
+            }
+            delegates.add(l);
+            view.removeMouseWheelListener(l);
+        }
+    }
+
+    private void detachView() {
+        if (hookedView == null) return;
+        hookedView.removeMouseWheelListener(this);
+        for (MouseWheelListener l : delegates) hookedView.addMouseWheelListener(l);
+        delegates.clear();
+        hookedView = null;
     }
 
     public static void hook(JScrollPane pane) {
@@ -81,8 +119,15 @@ public class SmoothScroller implements MouseWheelListener {
 
     @Override
     public void mouseWheelMoved(MouseWheelEvent e) {
+        ScrollBench.WHEELS.incrementAndGet();
         if (!ModernizerConfig.isSmoothScrollEnabled()) {
             scrollPane.setWheelScrollingEnabled(true);
+            return;
+        }
+
+        // Ctrl/Shift/Alt + tekerlek (yakinlastirma vb.) orijinal dinleyicilere birakilir
+        if (e.isControlDown() || e.isShiftDown() || e.isAltDown()) {
+            for (MouseWheelListener l : new java.util.ArrayList<>(delegates)) l.mouseWheelMoved(e);
             return;
         }
 
@@ -139,16 +184,24 @@ public class SmoothScroller implements MouseWheelListener {
     private synchronized void startTimer() {
         int hz = ModernizerConfig.getTargetHz();
         if (hz <= 0) hz = 120;
+        try {
+            int screen = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment()
+                    .getDefaultScreenDevice().getDisplayMode().getRefreshRate();
+            if (screen >= 60 && screen <= 360) hz = Math.max(hz, screen);
+        } catch (Throwable ignored) {}
         long periodNanos = 1_000_000_000L / hz;
-        animTask = EXECUTOR.scheduleAtFixedRate(this::tick, 0, periodNanos, TimeUnit.NANOSECONDS);
+        animTask = PrecisionTicker.schedule(this::tick, periodNanos);
     }
 
     private void tick() {
+        if (ScrollBench.ENABLED) ScrollBench.TICKS.add(System.nanoTime());
         if (!isRunning) return;
         // EDT henüz önceki kareyi çiziyorsa yeni event yığma (coalesce/drop)
         // Böylece kuyruk asla şişmez, input lag oluşmaz
         if (isDispatchPending.compareAndSet(false, true)) {
+            final long posted = System.nanoTime();
             SwingUtilities.invokeLater(() -> {
+                if (ScrollBench.ENABLED) ScrollBench.LAT.add(System.nanoTime() - posted);
                 try {
                     stepOnEdt();
                 } finally {
@@ -182,7 +235,13 @@ public class SmoothScroller implements MouseWheelListener {
         double easeOut = 1.0 - (u * u * u);
 
         double newY = animStartPos + (animTargetPos - animStartPos) * easeOut;
-        vbar.setValue((int) Math.round(newY));
+        if (ScrollBench.ENABLED) {
+            final long t0 = System.nanoTime();
+            vbar.setValue((int) Math.round(newY));
+            SwingUtilities.invokeLater(() -> ScrollBench.SAMPLES.add(new long[]{t0, System.nanoTime()}));
+        } else {
+            vbar.setValue((int) Math.round(newY));
+        }
     }
 
     private synchronized void stopAnimation() {
@@ -206,6 +265,7 @@ public class SmoothScroller implements MouseWheelListener {
 
     private void uninstallInternal() {
         stopAnimation();
+        detachView();
         scrollPane.removeMouseWheelListener(this);
         scrollPane.setWheelScrollingEnabled(true);
     }
