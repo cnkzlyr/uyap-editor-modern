@@ -22,3 +22,5 @@ upstream/
 # OS
 .DS_Store
 Thumbs.db
+
+platforms/windows/staging/

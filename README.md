@@ -44,14 +44,22 @@ Kurulum sonrasında uygulama menünüzden **UYAP Doküman Editörü Modern** vey
 * Doküman Editörü: `uyap-dokuman [dosya.udf]`
 * Şablon Editörü: `uyap-sablon [dosya.usf]`
 
-### 2. Windows 10 & 11
-PowerShell'i (Yönetici olarak) açın ve çalıştırın:
+### 2. Windows 10 & 11 (x64 / AMD64 & ARM64)
+
+#### Seçenek A: Tek Tıkla Setup (.exe) Kurulumu (Önerilen)
+Releases sayfasından **`UYAP-Editor-Modern-Setup.exe`** dosyasını indirin ve kurun:
+* **Tam Bağımsız (Self-Contained):** OpenJDK 14.0.2, resmi UYAP kütüphaneleri ve AKİS e-imza (`akisp11.dll`) sürücüsü kurulum paketinin içine gömülüdür.
+* **Yerel .exe Başlatıcılar:** Konsol penceresi açılmaksızın doğrudan çalışan yüksek performanslı modern başlatıcılar (`UYAP Dokuman Editoru.exe` ve `UYAP Sablon Editoru.exe`).
+* **Otomatik Dosya İlişkilendirme:** `.udf` ve `.usf` uzantıları ikonlarıyla birlikte sisteme kaydedilir.
+
+#### Seçenek B: PowerShell Otomatik Kurulum
+PowerShell'i açın ve çalıştırın:
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force
 .\platforms\windows\install.ps1
 ```
-* Masaüstünüze siyah konsol penceresi açılmaksızın çalışan modern başlatıcı kısayolları eklenir.
-* `.udf` ve `.usf` dosyaları otomatik olarak ilişkilendirilir; çift tıklandığında doğrudan belge açılır.
+
+*(Geliştiriciler için kendi Setup .exe paketini derlemek: `.\platforms\windows\build-setup.ps1`)*
 
 ### 3. macOS (Apple Silicon & Intel)
 Terminalden çalıştırın:
