@@ -50,6 +50,7 @@ jobs:
           cp platforms/linux/bin/* pkg/linux/
           cp -r platforms/linux/desktop pkg/linux/
           cp -r platforms/linux/drivers pkg/linux/
+          cp -r platforms/linux/icons pkg/linux/
           cp platforms/linux/install.sh pkg/linux/
           chmod +x pkg/linux/*.sh
           tar -czf release-assets/uyap-editor-modern-linux-x86_64.tar.gz -C pkg/linux .

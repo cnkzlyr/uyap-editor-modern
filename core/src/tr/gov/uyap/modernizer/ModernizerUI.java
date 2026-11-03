@@ -80,10 +80,11 @@ public class ModernizerUI {
         JMenuItem aboutItem = new JMenuItem("Modern Editör Hakkında");
         aboutItem.addActionListener(e -> {
             JOptionPane.showMessageDialog(frame,
-                    "UYAP Editör Modernizer v2.0\n" +
+                    "UYAP Editör Modernizer v2.1.0\n" +
                     "Geliştirici: Can Kızılyar (github.com/cnkzlyr)\n\n" +
                     "Özellikler:\n" +
                     "• 120Hz/240Hz Donanım Uyumlu Akıcı Kaydırma (F9)\n" +
+                    "• Çift Tıklama ile .udf ve .usf Belge/Şablon Otomatik Açma\n" +
                     "• Otomatik Çift E-İmza Desteği (Arkİmza, TBB ACR39U, AKİS)\n" +
                     "• Lisans ve Akıllı Kart Çözümleyici Entegrasyonu\n" +
                     "• Modern FlatLaf Temaları ve HiDPI Optimizasyonu",

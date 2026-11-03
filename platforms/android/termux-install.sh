@@ -116,24 +116,74 @@ for j in *.jar; do
     fi
 done
 
-java --add-opens java.base/java.lang=ALL-UNNAMED \
-     --add-opens java.base/java.lang.reflect=ALL-UNNAMED \
-     --add-opens java.base/java.util=ALL-UNNAMED \
-     --add-opens java.base/java.text=ALL-UNNAMED \
-     --add-opens java.base/java.io=ALL-UNNAMED \
-     --add-opens java.desktop/java.awt=ALL-UNNAMED \
-     --add-opens java.desktop/java.awt.font=ALL-UNNAMED \
-     --add-opens java.desktop/javax.swing=ALL-UNNAMED \
-     --add-opens java.desktop/javax.swing.plaf.basic=ALL-UNNAMED \
-     --add-opens java.desktop/sun.awt=ALL-UNNAMED \
-     --add-opens java.desktop/sun.swing=ALL-UNNAMED \
-     --add-opens java.desktop/sun.font=ALL-UNNAMED \
-     -javaagent:uyap-modernizer.jar \
-     -Xms128m -Xmx1024m \
-     -Dsun.java2d.uiScale=1.25 \
-     -Dawt.useSystemAAFontSettings=on \
-     -Dswing.aatext=true \
-     -cp "$CP" tr.com.havelsan.uyap.system.editor.common.WPAppManager "getNewWPInstance" "EDITOR_TYPE_DOCUMENT" "$@"
+CLEAN_ARGS=()
+for raw_arg in "$@"; do
+    [ -z "$raw_arg" ] && continue
+    arg="$raw_arg"
+    arg="${arg#\"}"
+    arg="${arg%\"}"
+    arg="${arg#\'}"
+    arg="${arg%\'}"
+    if [[ "$arg" =~ ^file:// ]]; then
+        arg="${arg#file://}"
+        if command -v python3 >/dev/null 2>&1; then
+            arg="$(python3 -c 'import sys, urllib.parse; print(urllib.parse.unquote(sys.argv[1]))' "$arg" 2>/dev/null || echo "$arg")"
+        fi
+    fi
+    if [ -e "$arg" ]; then
+        arg="$(readlink -f "$arg" 2>/dev/null || realpath "$arg" 2>/dev/null || echo "$arg")"
+    fi
+    CLEAN_ARGS+=("$arg")
+done
+
+EDITOR_TYPE="EDITOR_TYPE_DOCUMENT"
+TARGET=""
+if [ ${#CLEAN_ARGS[@]} -gt 0 ]; then
+    TARGET="${CLEAN_ARGS[0]}"
+    if [[ "$TARGET" =~ \.(usf|USF)$ ]]; then
+        EDITOR_TYPE="EDITOR_TYPE_TEMPLATE"
+    fi
+fi
+
+if [ -n "$TARGET" ]; then
+    java --add-opens java.base/java.lang=ALL-UNNAMED \
+         --add-opens java.base/java.lang.reflect=ALL-UNNAMED \
+         --add-opens java.base/java.util=ALL-UNNAMED \
+         --add-opens java.base/java.text=ALL-UNNAMED \
+         --add-opens java.base/java.io=ALL-UNNAMED \
+         --add-opens java.desktop/java.awt=ALL-UNNAMED \
+         --add-opens java.desktop/java.awt.font=ALL-UNNAMED \
+         --add-opens java.desktop/javax.swing=ALL-UNNAMED \
+         --add-opens java.desktop/javax.swing.plaf.basic=ALL-UNNAMED \
+         --add-opens java.desktop/sun.awt=ALL-UNNAMED \
+         --add-opens java.desktop/sun.swing=ALL-UNNAMED \
+         --add-opens java.desktop/sun.font=ALL-UNNAMED \
+         -javaagent:uyap-modernizer.jar \
+         -Xms128m -Xmx1024m \
+         -Dsun.java2d.uiScale=1.25 \
+         -Dawt.useSystemAAFontSettings=on \
+         -Dswing.aatext=true \
+         -cp "$CP" tr.com.havelsan.uyap.system.editor.common.WPAppManager "getNewWPInstance" "$EDITOR_TYPE" "$TARGET"
+else
+    java --add-opens java.base/java.lang=ALL-UNNAMED \
+         --add-opens java.base/java.lang.reflect=ALL-UNNAMED \
+         --add-opens java.base/java.util=ALL-UNNAMED \
+         --add-opens java.base/java.text=ALL-UNNAMED \
+         --add-opens java.base/java.io=ALL-UNNAMED \
+         --add-opens java.desktop/java.awt=ALL-UNNAMED \
+         --add-opens java.desktop/java.awt.font=ALL-UNNAMED \
+         --add-opens java.desktop/javax.swing=ALL-UNNAMED \
+         --add-opens java.desktop/javax.swing.plaf.basic=ALL-UNNAMED \
+         --add-opens java.desktop/sun.awt=ALL-UNNAMED \
+         --add-opens java.desktop/sun.swing=ALL-UNNAMED \
+         --add-opens java.desktop/sun.font=ALL-UNNAMED \
+         -javaagent:uyap-modernizer.jar \
+         -Xms128m -Xmx1024m \
+         -Dsun.java2d.uiScale=1.25 \
+         -Dawt.useSystemAAFontSettings=on \
+         -Dswing.aatext=true \
+         -cp "$CP" tr.com.havelsan.uyap.system.editor.common.WPAppManager "getNewWPInstance" "EDITOR_TYPE_DOCUMENT"
+fi
 EOF
 
 chmod +x ~/uyap-editor/run-android.sh
