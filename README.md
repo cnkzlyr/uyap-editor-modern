@@ -86,6 +86,10 @@ Android tabletlerde masaüstü UYAP Editör'ü çalıştırmak için:
   * `udf.xml` Shared-MIME veritabanı tanımı Linux paketine dahil edildi (`.udf`, `.UDF`, `.usf`, `.USF`).
   * 16x16'dan 256x256'ya kadar tüm HiDPI belge ve şablon ikonları yerleştirildi.
   * Masaüstü kısayollarında `Categories` ve `StartupNotify` standartlaştırıldı.
+* **🖼️ Dock İkonu, Başlık ve Canlı Önizleme Düzeltmesi:**
+  * `-javaagent` kullanımı sebebiyle pencere sınıfının (`WM_CLASS`) `sun-instrument-InstrumentationImpl` olarak belirlenmesi, dock'ta mavi dişli (fallback) ikonu çıkması ve fare üzerine gelince yanlış isim yazması sorunu çözüldü.
+  * Java AWT `XToolkit.awtAppClassName` ve pencere eşi (`setWMClass`) dinamik olarak `uyap-dokuman` ve `uyap-sablon` olarak ayarlandı; `StartupWMClass` ile tam uyum sağlandı.
+  * `JFrame` pencerelerine çoklu boyutlu (16x16, 32x32, 48x48, 128x128, 256x256) ikonlar gömülerek GNOME Shell / Dash-to-Dock ve KDE görev çubuğunda canlı pencere önizlemeleri sağlandı.
 * **🖥️ Windows, macOS ve Android İyileştirmeleri:**
   * Windows `dokuman.bat` ve `sablon.bat` içindeki `BASE_DIR` dizin tespiti ve tırnaklı dosya argümanı çözümlemesi güncellendi.
   * macOS için hem Doküman hem Şablon başlatıcıları ve Gatekeeper temizliği yapılandırıldı.

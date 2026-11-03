@@ -82,9 +82,20 @@ elif [ -d "/usr/share/icons/hicolor" ]; then
     done
 fi
 
+for size in 16x16 32x32 48x48 128x128 256x256; do
+    mkdir -p "$ICONS_DIR/$size/apps" "$ICONS_DIR/$size/mimetypes"
+    [ -f "$ICONS_DIR/$size/mimetypes/application-udf.png" ] && cp -f "$ICONS_DIR/$size/mimetypes/application-udf.png" "$ICONS_DIR/$size/apps/uyap-dokuman.png" 2>/dev/null || true
+    [ -f "$ICONS_DIR/$size/mimetypes/application-usf.png" ] && cp -f "$ICONS_DIR/$size/mimetypes/application-usf.png" "$ICONS_DIR/$size/apps/uyap-sablon.png" 2>/dev/null || true
+done
+gtk-update-icon-cache -f -t "$ICONS_DIR" 2>/dev/null || true
+
 echo -e "[5/6] Masaüstü kısayolları ve MIME ilişkilendirmeleri..."
 cp -f "$SCRIPT_DIR/desktop/"*.desktop "$DESKTOP_DIR/" 2>/dev/null || true
 cp -f "$SCRIPT_DIR/desktop/"*.xml "$MIME_DIR/packages/" 2>/dev/null || true
+
+# GNOME / KDE dock ve uygulama yöneticisi için ek takma ad symlink'leri
+ln -sf "$DESKTOP_DIR/dokuman.desktop" "$DESKTOP_DIR/uyap-dokuman.desktop"
+ln -sf "$DESKTOP_DIR/sablon.desktop" "$DESKTOP_DIR/uyap-sablon.desktop"
 
 update-mime-database "$MIME_DIR" 2>/dev/null || true
 update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true

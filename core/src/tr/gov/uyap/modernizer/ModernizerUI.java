@@ -3,8 +3,13 @@ package tr.gov.uyap.modernizer;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
+import java.io.File;
+import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
+import javax.imageio.ImageIO;
 
 public class ModernizerUI {
     public static void injectMenu(JFrame frame) {
@@ -126,5 +131,79 @@ public class ModernizerUI {
         JScrollPane sp = new JScrollPane(ta);
 
         JOptionPane.showMessageDialog(parent, sp, "E-İmza Teşhis Paneli", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    public static void applyWindowMetadata(JFrame frame, String appName) {
+        if (frame == null) return;
+
+        // 1. Peer üzerinden WM_CLASS zorla ayarla (X11 / GNOME dock eşleşmesi için)
+        try {
+            Field peerField = Component.class.getDeclaredField("peer");
+            peerField.setAccessible(true);
+            Object peer = peerField.get(frame);
+            if (peer != null) {
+                Method setWMClass = peer.getClass().getMethod("setWMClass", String[].class);
+                setWMClass.invoke(peer, (Object) new String[]{appName, appName});
+            }
+        } catch (Throwable ignored) {
+        }
+
+        // 2. Yüksek çözünürlüklü pencere ikonlarını frame'e uygula
+        try {
+            List<Image> icons = loadAppIcons(appName);
+            if (!icons.isEmpty()) {
+                frame.setIconImages(icons);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static List<Image> loadAppIcons(String appName) {
+        List<Image> list = new ArrayList<>();
+        int[] sizes = {16, 32, 48, 64, 128, 256};
+        String prefix = "sablon".contains(appName) ? "application-usf" : "application-udf";
+
+        // 1. JAR içi /icons/ kaynaklarından oku
+        for (int size : sizes) {
+            try {
+                InputStream in = ModernizerUI.class.getResourceAsStream("/icons/" + prefix + "-" + size + ".png");
+                if (in != null) {
+                    Image img = ImageIO.read(in);
+                    if (img != null) list.add(img);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+
+        // 2. Yerel sistem dizinlerinden oku
+        if (list.isEmpty()) {
+            String home = System.getProperty("user.home");
+            String[] baseDirs = {
+                home + "/.local/share/icons/hicolor",
+                "/usr/share/icons/hicolor"
+            };
+            for (int size : sizes) {
+                for (String baseDir : baseDirs) {
+                    File f = new File(baseDir + "/" + size + "x" + size + "/mimetypes/" + prefix + ".png");
+                    if (!f.exists()) {
+                        f = new File(baseDir + "/" + size + "x" + size + "/apps/" + appName + ".png");
+                    }
+                    if (!f.exists()) {
+                        f = new File(baseDir + "/" + size + "x" + size + "/apps/uyap-editor.png");
+                    }
+                    if (f.exists()) {
+                        try {
+                            Image img = ImageIO.read(f);
+                            if (img != null) {
+                                list.add(img);
+                                break;
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }
+            }
+        }
+        return list;
     }
 }

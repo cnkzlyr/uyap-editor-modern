@@ -94,12 +94,14 @@ GC_OPTS="-XX:+UseG1GC -XX:+UseStringDeduplication"
 MEM_OPTS="-Xms${UYAP_XMS:-256m} -Xmx${UYAP_XMX:-1024m}"
 
 if [ -n "$MODERNIZER_JAR" ]; then
-    AGENT_OPTS="-javaagent:$MODERNIZER_JAR"
+    AGENT_OPTS="-javaagent:$MODERNIZER_JAR=dokuman"
 else
     AGENT_OPTS=""
 fi
 
-ALL_OPTS="$PKCS11_OPTS $MEM_OPTS $GC_OPTS $SCALE_OPTS $FONT_OPTS $ACCEL_OPTS $AGENT_OPTS"
+WM_OPTS="-Dawt.app.class.name=uyap-dokuman"
+
+ALL_OPTS="$PKCS11_OPTS $MEM_OPTS $GC_OPTS $SCALE_OPTS $FONT_OPTS $ACCEL_OPTS $WM_OPTS $AGENT_OPTS"
 
 # Argüman temizleme: file:// önekini kaldır, URL çözümle (%20 vb.), mutlak yola çevir
 CLEAN_ARGS=()

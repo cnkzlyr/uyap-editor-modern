@@ -22,8 +22,20 @@ unzip -q -o "$FLATLAF_JAR" -d "$BUILD_DIR/classes"
 rm -rf "$BUILD_DIR/classes/META-INF"
 rm -f "$BUILD_DIR/classes/module-info.class"
 
-echo "[3/4] Java kaynak kodları derleniyor..."
+echo "[3/4] Java kaynak kodları ve kaynak dosyalar hazırlanıyor..."
 find "$SRC_DIR" -name "*.java" > "$BUILD_DIR/sources.txt"
+
+# İkonları paket içine kopyala (Pencere ve dock için HiDPI ikonlar)
+mkdir -p "$BUILD_DIR/classes/icons"
+if [ -d "$ROOT_DIR/platforms/linux/icons/hicolor" ]; then
+    for size in 16 32 48 128 256; do
+        s="${size}x${size}"
+        [ -f "$ROOT_DIR/platforms/linux/icons/hicolor/$s/mimetypes/application-udf.png" ] && \
+            cp -f "$ROOT_DIR/platforms/linux/icons/hicolor/$s/mimetypes/application-udf.png" "$BUILD_DIR/classes/icons/application-udf-$size.png"
+        [ -f "$ROOT_DIR/platforms/linux/icons/hicolor/$s/mimetypes/application-usf.png" ] && \
+            cp -f "$ROOT_DIR/platforms/linux/icons/hicolor/$s/mimetypes/application-usf.png" "$BUILD_DIR/classes/icons/application-usf-$size.png"
+    done
+fi
 
 # Sistemde yüklü olan veya UYAP içindeki javac'ı bul
 if [ -x "/usr/share/UYAPEditor/jdk-14.0.2/bin/javac" ]; then
