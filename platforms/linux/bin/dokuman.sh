@@ -81,6 +81,15 @@ export LD_LIBRARY_PATH="$HOME/.local/lib:$BASE_DIR:$BASE_DIR/jdk-14.0.2/lib:/usr
 PKCS11_OPTS="-Djava.library.path=$HOME/.local/lib:$BASE_DIR:$BASE_DIR/jdk-14.0.2/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu:/usr/lib"
 [ -n "$PCSC_LIB" ] && PKCS11_OPTS="-Dsun.security.smartcardio.library=$PCSC_LIB $PKCS11_OPTS"
 
+# PDF Font Optimizasyonu (UYAP'ın iText motorunun sistem fontlarını doğrudan bulması için)
+if [ -z "$windir" ]; then
+    if [ -d "/usr/local/share/fonts" ]; then
+        export windir="/usr/local/share"
+    elif [ -d "/usr/share/fonts" ]; then
+        export windir="/usr/share"
+    fi
+fi
+
 # UI & Performans Ayarları
 if [ -n "$UYAP_SCALE" ] && [ "$UYAP_SCALE" != "auto" ]; then
     SCALE_OPTS="-Dsun.java2d.uiScale=$UYAP_SCALE"

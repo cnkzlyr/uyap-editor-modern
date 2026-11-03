@@ -140,5 +140,10 @@ mkdir -p "$HOME/.uki"
 [ ! -f "$HOME/.uki/modernizer.properties" ] && cp -f "$ROOT_DIR/config/modernizer.properties" "$HOME/.uki/"
 [ ! -f "$HOME/.uki/uyap.conf" ] && cp -f "$ROOT_DIR/config/uyap.conf" "$HOME/.uki/"
 
+# UYAP'ın eski Linux font arama yolu için sembolik bağlantı (yazma izni varsa)
+if [ -w "/usr/share/fonts" ] && [ ! -e "/usr/share/fonts/allFonts" ]; then
+    ln -sf /usr/share/fonts /usr/share/fonts/allFonts 2>/dev/null || true
+fi
+
 echo -e "${GREEN}✓ Kurulum başarıyla tamamlandı!${NC}"
 echo -e "Çalıştırmak için: ${BLUE}uyap-dokuman${NC} veya ${BLUE}uyap-sablon${NC}"

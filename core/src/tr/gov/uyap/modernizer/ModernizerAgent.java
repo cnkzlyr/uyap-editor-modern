@@ -30,6 +30,9 @@ public class ModernizerAgent {
         ThemeManager.initDisplayEnhancements();
         ScrollBench.start();
 
+        // PDF dışa aktarımında Times New Roman ve sistem fontlarının eksiksiz eşleşmesi için font iyileştiriciyi başlat
+        PdfFontFixer.init();
+
         SwingUtilities.invokeLater(() -> {
             String cmd = System.getProperty("sun.java.command", "");
             if (cmd.contains("EDITOR_TYPE_TEMPLATE")) {
@@ -41,6 +44,8 @@ public class ModernizerAgent {
             if (!"system".equalsIgnoreCase(theme)) {
                 ThemeManager.applyTheme(theme);
             }
+
+            PdfFontFixer.init();
 
             Toolkit.getDefaultToolkit().addAWTEventListener(new AWTEventListener() {
                 @Override

@@ -20,6 +20,10 @@ Resmi **UYAP Doküman & Şablon Editörü** için geliştirilmiş çoklu platfor
 * **🎨 Modern Arayüz Temaları (FlatLaf Entegre):**
   * Modern Açık (Flat Light) ve Modern Koyu (Flat Dark) tema seçenekleri.
   * Subpixel LCD font antialiasing ile keskin yazı tipi kalitesi.
+* **🔤 Kusursuz PDF Dışa Aktarımı & Yazı Tipi Eşleme (Times New Roman Düzeltmesi):**
+  * UYAP Editörü'nün Linux ve modern sistemlerde standart yazı tipi dizinlerini taramaması sebebiyle Times New Roman ile yazılan metinlerin PDF'e aktarılırken Helvetica (sans-serif) olarak bozulması sorununun kökten çözümü.
+  * Sistemdeki tüm yazı tipi dizinlerini (`/usr/share/fonts`, `/usr/local/share/fonts`, `~/.local/share/fonts` vb.) otomatik tarayan akıllı `PdfFontFixer` motoru.
+  * Times New Roman ve diğer fontların PDF çıktısında orijinal biçimiyle (Regular, Bold, Italic) birebir korunması.
 * **📂 Kararlı ve Güvenilir Özgün Dosya Seçici:**
   * UYAP'ın tüm dosya türü filtrelerini (`*.udf`, `*.usf`, `*.pdf`, `*.*`) ve belge önizlemelerini destekleyen eksiksiz özgün dosya seçici.
 * **🌐 Çoklu Platform Desteği:**
