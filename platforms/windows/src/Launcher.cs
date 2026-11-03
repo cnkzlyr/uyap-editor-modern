@@ -59,7 +59,7 @@ namespace UYAPLauncher
 
                 // 4. UI ve Performans Parametreleri (Orijinal Kararli Yapilandirma)
                 string fontOpts = "-Dawt.useSystemAAFontSettings=lcd -Dswing.aatext=true";
-                string memOpts = "-Xms256m -Xmx1024m -XX:+UseG1GC -XX:+UseStringDeduplication";
+                string memOpts = "-Xms256m -Xmx1024m -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+ForceTimeHighResolution";
 
                 // 5. Profil ve Ayarlar (.uki)
                 string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

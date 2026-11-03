@@ -6,29 +6,50 @@ import java.awt.event.MouseWheelListener;
 import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Microsoft Word ve modern arayüz standartlarında akıcı kaydırma (Smooth Scroller).
+ * Cubic Ease-Out interpolasyonu ve yüksek çözünürlüklü 120Hz/240Hz zamanlayıcı ile
+ * sıfır input lag, anlık tepki ve pürüzsüz duruş sağlar.
+ */
 public class SmoothScroller implements MouseWheelListener {
     private static final Map<JScrollPane, SmoothScroller> activeScrollers =
             Collections.synchronizedMap(new WeakHashMap<>());
 
+    // Windows Direct3D grafik boru hattı ile uyumlu yüksek çözünürlüklü executor (120Hz - 240Hz)
+    private static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "Modernizer-SmoothScroller");
+        t.setDaemon(true);
+        t.setPriority(Thread.MAX_PRIORITY);
+        return t;
+    });
+
     private final JScrollPane scrollPane;
-    private final Timer timer;
-    private double currentY;
-    private double targetY;
+    private ScheduledFuture<?> animTask;
+
+    private double animStartPos;
+    private double animTargetPos;
+    private long animStartTimeNanos;
+    private long animDurationNanos;
+    private volatile boolean isRunning = false;
+    private final AtomicBoolean isDispatchPending = new AtomicBoolean(false);
+
+    // Microsoft Word / modern tarayıcı standart kaydırma süresi (~160ms)
+    private static final double DEFAULT_DURATION_MS = 160.0;
     private long lastWheelTime = 0;
     private double velocityMultiplier = 1.0;
-    private boolean isUpdating = false;
 
     public SmoothScroller(JScrollPane pane) {
         this.scrollPane = pane;
-        int hz = ModernizerConfig.getTargetHz();
-        int interval = Math.max(4, 1000 / hz);
-
         this.scrollPane.setWheelScrollingEnabled(false);
         this.scrollPane.addMouseWheelListener(this);
 
-        this.timer = new Timer(interval, e -> step());
-        this.timer.setCoalesce(true);
+        JViewport vp = this.scrollPane.getViewport();
+        if (vp != null) {
+            vp.setScrollMode(JViewport.BLIT_SCROLL_MODE);
+        }
     }
 
     public static void hook(JScrollPane pane) {
@@ -50,6 +71,10 @@ public class SmoothScroller implements MouseWheelListener {
                     s.uninstallInternal();
                 }
                 activeScrollers.clear();
+            } else {
+                for (SmoothScroller s : activeScrollers.values()) {
+                    s.restartIfRunning();
+                }
             }
         }
     }
@@ -68,73 +93,119 @@ public class SmoothScroller implements MouseWheelListener {
         long dt = now - lastWheelTime;
         lastWheelTime = now;
 
-        if (dt < 120) {
-            velocityMultiplier = Math.min(2.5, velocityMultiplier + 0.25);
-        } else {
+        // Word benzeri dinamik ivmelenme (tekerlek hızlı çevrildiğinde hız katlanır)
+        if (dt < 90) {
+            velocityMultiplier = Math.min(3.2, velocityMultiplier + 0.35);
+        } else if (dt > 220) {
             velocityMultiplier = 1.0;
         }
 
-        double delta;
-        if (e.getScrollType() == MouseWheelEvent.WHEEL_UNIT_SCROLL) {
-            delta = e.getUnitsToScroll() * (ModernizerConfig.getScrollStep() / 3.0);
-        } else {
-            delta = e.getWheelRotation() * ModernizerConfig.getScrollStep();
+        double rotation;
+        try {
+            rotation = e.getPreciseWheelRotation();
+        } catch (Throwable ignored) {
+            rotation = e.getWheelRotation();
         }
 
-        delta *= velocityMultiplier;
+        double step = ModernizerConfig.getScrollStep();
+        if (step <= 0) step = 75.0;
 
-        if (!timer.isRunning()) {
-            currentY = vbar.getValue();
-            targetY = currentY;
-        }
-
-        targetY += delta;
+        double delta = rotation * step * velocityMultiplier;
         int min = vbar.getMinimum();
         int max = vbar.getMaximum() - vbar.getModel().getExtent();
-        targetY = Math.max(min, Math.min(max, targetY));
 
-        if (!timer.isRunning()) {
-            timer.start();
+        synchronized (this) {
+            double currentPos = vbar.getValue();
+            if (!isRunning) {
+                animStartPos = currentPos;
+                animTargetPos = Math.max(min, Math.min(max, currentPos + delta));
+            } else {
+                // Word benzeri kesintisiz zincirleme: Önceki hareketin kalanı korunur, yeni delta eklenir
+                double remaining = animTargetPos - currentPos;
+                animStartPos = currentPos;
+                animTargetPos = Math.max(min, Math.min(max, currentPos + remaining + delta));
+            }
+
+            animStartTimeNanos = System.nanoTime();
+            animDurationNanos = (long) (DEFAULT_DURATION_MS * 1_000_000L);
+
+            if (!isRunning) {
+                isRunning = true;
+                startTimer();
+            }
         }
     }
 
-    private void step() {
-        if (isUpdating) return; // Drop step if EDT is still rasterizing
-        isUpdating = true;
-        try {
-            JScrollBar vbar = scrollPane.getVerticalScrollBar();
-            if (vbar == null) {
-                timer.stop();
-                return;
+    private synchronized void startTimer() {
+        int hz = ModernizerConfig.getTargetHz();
+        if (hz <= 0) hz = 120;
+        long periodNanos = 1_000_000_000L / hz;
+        animTask = EXECUTOR.scheduleAtFixedRate(this::tick, 0, periodNanos, TimeUnit.NANOSECONDS);
+    }
+
+    private void tick() {
+        if (!isRunning) return;
+        // EDT henüz önceki kareyi çiziyorsa yeni event yığma (coalesce/drop)
+        // Böylece kuyruk asla şişmez, input lag oluşmaz
+        if (isDispatchPending.compareAndSet(false, true)) {
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    stepOnEdt();
+                } finally {
+                    isDispatchPending.set(false);
+                }
+            });
+        }
+    }
+
+    private void stepOnEdt() {
+        if (!isRunning) return;
+
+        JScrollBar vbar = scrollPane.getVerticalScrollBar();
+        if (vbar == null) {
+            stopAnimation();
+            return;
+        }
+
+        long elapsedNanos = System.nanoTime() - animStartTimeNanos;
+        double progress = (double) elapsedNanos / animDurationNanos;
+
+        if (progress >= 1.0) {
+            vbar.setValue((int) Math.round(animTargetPos));
+            stopAnimation();
+            return;
+        }
+
+        // Microsoft Word Cubic Ease-Out eğrisi: 1 - (1 - u)^3
+        // Anında ilk hareket hızı (sıfır gecikme) ve hedefe yaklaştıkça ipeksi yavaşlama
+        double u = 1.0 - progress;
+        double easeOut = 1.0 - (u * u * u);
+
+        double newY = animStartPos + (animTargetPos - animStartPos) * easeOut;
+        vbar.setValue((int) Math.round(newY));
+    }
+
+    private synchronized void stopAnimation() {
+        isRunning = false;
+        if (animTask != null) {
+            animTask.cancel(false);
+            animTask = null;
+        }
+        velocityMultiplier = 1.0;
+    }
+
+    private synchronized void restartIfRunning() {
+        if (isRunning) {
+            if (animTask != null) {
+                animTask.cancel(false);
+                animTask = null;
             }
-
-            double diff = targetY - currentY;
-            if (Math.abs(diff) < 0.5) {
-                currentY = targetY;
-                vbar.setValue((int) Math.round(currentY));
-                timer.stop();
-                velocityMultiplier = 1.0;
-                return;
-            }
-
-            double decay = ModernizerConfig.getScrollDecay();
-            double dtSec = timer.getDelay() / 1000.0;
-            double factor = 1.0 - Math.exp(-decay * dtSec);
-
-            currentY += diff * factor;
-
-            int min = vbar.getMinimum();
-            int max = vbar.getMaximum() - vbar.getModel().getExtent();
-            currentY = Math.max(min, Math.min(max, currentY));
-
-            vbar.setValue((int) Math.round(currentY));
-        } finally {
-            isUpdating = false;
+            startTimer();
         }
     }
 
     private void uninstallInternal() {
-        timer.stop();
+        stopAnimation();
         scrollPane.removeMouseWheelListener(this);
         scrollPane.setWheelScrollingEnabled(true);
     }
