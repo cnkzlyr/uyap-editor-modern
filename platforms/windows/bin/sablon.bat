@@ -49,7 +49,7 @@ set "PKCS11_OPTS=-Djava.library.path=%BASE_DIR%;%SystemRoot%\System32;%SystemRoo
 
 :: UI & Performans Parametreleri
 set "FONT_OPTS=-Dawt.useSystemAAFontSettings=lcd -Dswing.aatext=true"
-set "MEM_OPTS=-Xms256m -Xmx1024m -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+ForceTimeHighResolution"
+set "MEM_OPTS=-Xms256m -Xmx1024m -XX:+UseG1GC -XX:+UseStringDeduplication"
 
 :: Hedef dosya kontrolü ve tip tespiti (.udf doküman / .usf şablon)
 set "TARGET=%~1"

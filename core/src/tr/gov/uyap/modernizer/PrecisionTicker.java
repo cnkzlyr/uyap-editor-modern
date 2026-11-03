@@ -18,6 +18,7 @@ final class PrecisionTicker {
         final Handle h = new Handle();
         Thread t = new Thread(() -> {
             long next = System.nanoTime();
+            boolean coarseSleep = false;
             while (!h.cancelled) {
                 task.run();
                 next += periodNanos;
@@ -31,8 +32,11 @@ final class PrecisionTicker {
                 while (!h.cancelled) {
                     long remaining = next - System.nanoTime();
                     if (remaining <= 0) break;
-                    if (remaining > SPIN_NANOS) {
+                    if (remaining > SPIN_NANOS && !coarseSleep) {
+                        long s0 = System.nanoTime();
                         try { Thread.sleep(1); } catch (InterruptedException e) { return; }
+                        // Uyku beklenenden cok uzadiysa (zamanlayici cozunurlugu kaba) saf spin'e gec
+                        if (System.nanoTime() - s0 > 4_000_000L) coarseSleep = true;
                     } else {
                         Thread.onSpinWait();
                     }

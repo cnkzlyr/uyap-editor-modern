@@ -7,32 +7,38 @@ import java.awt.event.MouseWheelListener;
 import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
-import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Microsoft Word ve modern arayüz standartlarında akıcı kaydırma (Smooth Scroller).
- * Cubic Ease-Out interpolasyonu ve yüksek çözünürlüklü 120Hz/240Hz zamanlayıcı ile
- * sıfır input lag, anlık tepki ve pürüzsüz duruş sağlar.
+ * Microsoft Word / modern tarayici hissinde akici kaydirma.
+ *
+ * Tekerlek her centikte animasyonu BASTAN BASLATMAZ; yalnizca hedef konumu oteler.
+ * Gercek konum, hizi sureklilik gosteren kritik sonumlu bir yay (critically damped spring)
+ * ile hedefi izler: hiz ve ivme hicbir centikte ani sicramaz, durus yumusaktir.
+ * Kare zamani PrecisionTicker ile (120/144/240 Hz) hassas uretilir, ilerleme gercek gecen
+ * sureye (dt) baglidir; EDT geç kalsa bile hareket hizi degismez.
  */
 public class SmoothScroller implements MouseWheelListener {
     private static final Map<JScrollPane, SmoothScroller> activeScrollers =
             Collections.synchronizedMap(new WeakHashMap<>());
 
+    // Yay yumusatma suresi (sn): kucuk = daha seri, buyuk = daha yagli. Word ~0.10-0.12.
+    private static final double SMOOTH_TIME = 0.11;
+
     private final JScrollPane scrollPane;
     private PrecisionTicker.Handle animTask;
+    private Timer sweeper;
 
-    private double animStartPos;
-    private double animTargetPos;
-    private long animStartTimeNanos;
-    private long animDurationNanos;
+    // Yalnizca EDT'de erisilir
+    private double position;
+    private double target;
+    private double velocity;
+    private long lastStepNanos;
+    private double wheelRateEma = 0;
+    private long lastWheelNanos = 0;
+
     private volatile boolean isRunning = false;
     private final AtomicBoolean isDispatchPending = new AtomicBoolean(false);
-
-    // Microsoft Word / modern tarayıcı standart kaydırma süresi (~160ms)
-    private static final double DEFAULT_DURATION_MS = 160.0;
-    private long lastWheelTime = 0;
-    private double velocityMultiplier = 1.0;
 
     public SmoothScroller(JScrollPane pane) {
         this.scrollPane = pane;
@@ -41,11 +47,13 @@ public class SmoothScroller implements MouseWheelListener {
 
         JViewport vp = this.scrollPane.getViewport();
         if (vp != null) {
-            vp.setScrollMode(JViewport.BLIT_SCROLL_MODE);
+            String sm = System.getProperty("uyap.scrollmode", "BACKINGSTORE");
+            vp.setScrollMode("BLIT".equals(sm) ? JViewport.BLIT_SCROLL_MODE
+                    : "SIMPLE".equals(sm) ? JViewport.SIMPLE_SCROLL_MODE : JViewport.BACKINGSTORE_SCROLL_MODE);
             vp.addChangeListener(e -> attachView());
         }
         attachView();
-        Timer sweeper = new Timer(750, e -> attachView());
+        sweeper = new Timer(750, e -> attachView());
         sweeper.setRepeats(true);
         sweeper.start();
     }
@@ -71,13 +79,9 @@ public class SmoothScroller implements MouseWheelListener {
     private void sweepListeners() {
         Component view = hookedView;
         if (view == null) return;
-        boolean foreign = false;
         for (MouseWheelListener l : view.getMouseWheelListeners()) {
-            if (l == this || delegates.contains(l)) {
-                if (l != this) view.removeMouseWheelListener(l);
-                continue;
-            }
-            delegates.add(l);
+            if (l == this) continue;
+            if (!delegates.contains(l)) delegates.add(l);
             view.removeMouseWheelListener(l);
         }
     }
@@ -134,16 +138,18 @@ public class SmoothScroller implements MouseWheelListener {
         JScrollBar vbar = scrollPane.getVerticalScrollBar();
         if (vbar == null || !vbar.isVisible()) return;
 
-        long now = System.currentTimeMillis();
-        long dt = now - lastWheelTime;
-        lastWheelTime = now;
+        long now = System.nanoTime();
+        double sinceLast = (now - lastWheelNanos) / 1e9;
+        lastWheelNanos = now;
 
-        // Word benzeri dinamik ivmelenme (tekerlek hızlı çevrildiğinde hız katlanır)
-        if (dt < 90) {
-            velocityMultiplier = Math.min(3.2, velocityMultiplier + 0.35);
-        } else if (dt > 220) {
-            velocityMultiplier = 1.0;
+        // Cark hizina bagli YUMUSAK ivmelenme (ani sicrama yok): hizli cevirince daha uzaga gider
+        if (sinceLast > 0.30 || sinceLast <= 0) {
+            wheelRateEma = 0;
+        } else {
+            double rate = 1.0 / sinceLast;
+            wheelRateEma = wheelRateEma == 0 ? rate : (0.75 * wheelRateEma + 0.25 * rate);
         }
+        double accel = 1.0 + Math.min(1.0, Math.max(0.0, (wheelRateEma - 12.0) / 28.0));
 
         double rotation;
         try {
@@ -154,28 +160,22 @@ public class SmoothScroller implements MouseWheelListener {
 
         double step = ModernizerConfig.getScrollStep();
         if (step <= 0) step = 75.0;
+        double delta = rotation * step * accel;
 
-        double delta = rotation * step * velocityMultiplier;
         int min = vbar.getMinimum();
         int max = vbar.getMaximum() - vbar.getModel().getExtent();
 
+        if (!isRunning) {
+            position = vbar.getValue();
+            target = position;
+            velocity = 0;
+        }
+        target = Math.max(min, Math.min(max, target + delta));
+
         synchronized (this) {
-            double currentPos = vbar.getValue();
-            if (!isRunning) {
-                animStartPos = currentPos;
-                animTargetPos = Math.max(min, Math.min(max, currentPos + delta));
-            } else {
-                // Word benzeri kesintisiz zincirleme: Önceki hareketin kalanı korunur, yeni delta eklenir
-                double remaining = animTargetPos - currentPos;
-                animStartPos = currentPos;
-                animTargetPos = Math.max(min, Math.min(max, currentPos + remaining + delta));
-            }
-
-            animStartTimeNanos = System.nanoTime();
-            animDurationNanos = (long) (DEFAULT_DURATION_MS * 1_000_000L);
-
             if (!isRunning) {
                 isRunning = true;
+                lastStepNanos = System.nanoTime();
                 startTimer();
             }
         }
@@ -196,8 +196,7 @@ public class SmoothScroller implements MouseWheelListener {
     private void tick() {
         if (ScrollBench.ENABLED) ScrollBench.TICKS.add(System.nanoTime());
         if (!isRunning) return;
-        // EDT henüz önceki kareyi çiziyorsa yeni event yığma (coalesce/drop)
-        // Böylece kuyruk asla şişmez, input lag oluşmaz
+        // EDT onceki kareyi hala isliyorsa yeni olay yigma (coalesce)
         if (isDispatchPending.compareAndSet(false, true)) {
             final long posted = System.nanoTime();
             SwingUtilities.invokeLater(() -> {
@@ -220,37 +219,55 @@ public class SmoothScroller implements MouseWheelListener {
             return;
         }
 
-        long elapsedNanos = System.nanoTime() - animStartTimeNanos;
-        double progress = (double) elapsedNanos / animDurationNanos;
+        long now = System.nanoTime();
+        double dt = (now - lastStepNanos) / 1e9;
+        lastStepNanos = now;
+        if (dt <= 0) return;
+        if (dt > 0.05) dt = 0.05; // uzun donmada sicrama olmasin
 
-        if (progress >= 1.0) {
-            vbar.setValue((int) Math.round(animTargetPos));
+        // Kritik sonumlu yay (SmoothDamp): konum ve hiz surekli
+        double omega = 2.0 / SMOOTH_TIME;
+        double x = omega * dt;
+        double exp = 1.0 / (1.0 + x + 0.48 * x * x + 0.235 * x * x * x);
+        double change = position - target;
+        double temp = (velocity + omega * change) * dt;
+        velocity = (velocity - omega * temp) * exp;
+        position = target + (change + temp) * exp;
+
+        int min = vbar.getMinimum();
+        int max = vbar.getMaximum() - vbar.getModel().getExtent();
+
+        boolean done = Math.abs(target - position) < 0.35 && Math.abs(velocity) < 6.0;
+        if (done) {
+            position = target;
+            vbar.setValue((int) Math.round(Math.max(min, Math.min(max, position))));
             stopAnimation();
             return;
         }
+        position = Math.max(min, Math.min(max, position));
+        if (position <= min || position >= max) {
+            if (Math.abs(target - position) < 0.5) velocity = 0;
+        }
 
-        // Microsoft Word Cubic Ease-Out eğrisi: 1 - (1 - u)^3
-        // Anında ilk hareket hızı (sıfır gecikme) ve hedefe yaklaştıkça ipeksi yavaşlama
-        double u = 1.0 - progress;
-        double easeOut = 1.0 - (u * u * u);
-
-        double newY = animStartPos + (animTargetPos - animStartPos) * easeOut;
+        int value = (int) Math.round(position);
         if (ScrollBench.ENABLED) {
             final long t0 = System.nanoTime();
-            vbar.setValue((int) Math.round(newY));
-            SwingUtilities.invokeLater(() -> ScrollBench.SAMPLES.add(new long[]{t0, System.nanoTime()}));
+            final double req = position;
+            vbar.setValue(value);
+            final int actual = vbar.getValue();
+            SwingUtilities.invokeLater(() -> ScrollBench.SAMPLES.add(new long[]{t0, System.nanoTime(), Double.doubleToLongBits(req), actual}));
         } else {
-            vbar.setValue((int) Math.round(newY));
+            vbar.setValue(value);
         }
     }
 
     private synchronized void stopAnimation() {
         isRunning = false;
+        velocity = 0;
         if (animTask != null) {
             animTask.cancel(false);
             animTask = null;
         }
-        velocityMultiplier = 1.0;
     }
 
     private synchronized void restartIfRunning() {
@@ -265,6 +282,7 @@ public class SmoothScroller implements MouseWheelListener {
 
     private void uninstallInternal() {
         stopAnimation();
+        if (sweeper != null) sweeper.stop();
         detachView();
         scrollPane.removeMouseWheelListener(this);
         scrollPane.setWheelScrollingEnabled(true);

@@ -50,6 +50,30 @@ public class ScrollBench {
                 for (java.awt.event.MouseWheelListener l : best.getMouseWheelListeners()) sb.append("  paneWL: ").append(l.getClass().getName()).append("\n");
                 for (Component ch : best.getViewport().getComponents()) sb.append("  vpChild: ").append(ch.getClass().getName()).append("\n");
                 SAMPLES.clear(); TICKS.clear(); LAT.clear();
+                final java.util.Map<String,Integer> hot = new java.util.concurrent.ConcurrentHashMap<>();
+                final java.util.Map<String,Integer> top = new java.util.concurrent.ConcurrentHashMap<>();
+                final int[] total = new int[1];
+                final boolean[] sampling = {true};
+                Thread sampler = new Thread(() -> {
+                    Thread edt = null;
+                    for (Thread th : Thread.getAllStackTraces().keySet()) if (th.getName().startsWith("AWT-EventQueue")) edt = th;
+                    while (sampling[0] && edt != null) {
+                        StackTraceElement[] st = edt.getStackTrace();
+                        boolean idle = st.length == 0;
+                        for (StackTraceElement e : st) if (e.getMethodName().equals("getNextEvent") || e.getMethodName().equals("wait")) { idle = true; break; }
+                        if (!idle) {
+                            total[0]++;
+                            top.merge(st[0].getClassName() + "." + st[0].getMethodName(), 1, Integer::sum);
+                            java.util.Set<String> seen = new java.util.HashSet<>();
+                            for (StackTraceElement e : st) {
+                                String k = e.getClassName() + "." + e.getMethodName();
+                                if (seen.add(k)) hot.merge(k, 1, Integer::sum);
+                            }
+                        }
+                        try { Thread.sleep(1); } catch (InterruptedException ie) { return; }
+                    }
+                }, "bench-sampler");
+                sampler.setDaemon(true); sampler.start();
                 int robotWheelsBefore = WHEELS.get();
                 r.mouseWheel(3); Thread.sleep(300);
                 sb.append("robot wheel received=").append(WHEELS.get() - robotWheelsBefore).append(" mouse=").append(MouseInfo.getPointerInfo().getLocation()).append(" target=").append(cx + "," + cy).append("\n");
@@ -57,16 +81,23 @@ public class ScrollBench {
                 sb.append("synthetic=").append(synthetic).append("\n");
                 final Component view2 = v;
                 // 3 seri tekerlek hareketi: 25 centik x 40ms
-                for (int burst = 0; burst < 3; burst++) {
-                    for (int i = 0; i < 25; i++) {
-                        if (synthetic) {
-                            Toolkit.getDefaultToolkit().getSystemEventQueue().postEvent(new java.awt.event.MouseWheelEvent(view2, java.awt.event.MouseEvent.MOUSE_WHEEL, System.currentTimeMillis(), 0, 100, 100, 0, false, java.awt.event.MouseWheelEvent.WHEEL_UNIT_SCROLL, 3, 3));
-                        } else { r.mouseWheel(3); }
-                        Thread.sleep(40);
+                for (int round = 0; round < 4; round++) {
+                    for (int dir = 1; dir >= -1; dir -= 2) {
+                        for (int i = 0; i < 6; i++) {
+                            if (synthetic) {
+                                Toolkit.getDefaultToolkit().getSystemEventQueue().postEvent(new java.awt.event.MouseWheelEvent(view2, java.awt.event.MouseEvent.MOUSE_WHEEL, System.currentTimeMillis(), 0, 100, 100, 0, false, java.awt.event.MouseWheelEvent.WHEEL_UNIT_SCROLL, 3, 3 * dir));
+                            } else { r.mouseWheel(3 * dir); }
+                            Thread.sleep(60);
+                        }
+                        Thread.sleep(600);
                     }
-                    Thread.sleep(700);
                 }
                 Thread.sleep(500);
+                sampling[0] = false;
+                sb.append("EDT busy samples=").append(total[0]).append("\n--- self (top frame) ---\n");
+                top.entrySet().stream().sorted((a, c) -> c.getValue() - a.getValue()).limit(12).forEach(en -> sb.append(String.format("%5d %s%n", en.getValue(), en.getKey())));
+                sb.append("--- inclusive ---\n");
+                hot.entrySet().stream().sorted((a, c) -> c.getValue() - a.getValue()).limit(40).forEach(en -> sb.append(String.format("%5d %s%n", en.getValue(), en.getKey())));
                 List<long[]> s = new ArrayList<>(SAMPLES);
                 sb.append("vbar value after=").append(vb.getValue()).append("\n");
                 sb.append("steps=").append(s.size()).append("\n");
@@ -84,6 +115,19 @@ public class ScrollBench {
                 for (long x : la) lm.add(x / 1e6);
                 sb.append("ticks=").append(tk.size()).append(" tickGap(ms) ").append(stats(tg)).append("\n");
                 sb.append("posts=").append(la.size()).append(" invokeLater latency(ms) ").append(stats(lm)).append("\n");
+                // Piksel hareketi duzgunlugu: kare basina delta ve ardisik delta farki (jerk)
+                List<Double> dl = new ArrayList<>(); List<Double> jk = new ArrayList<>(); int quant = 0;
+                for (int i = 0; i < s.size(); i++) {
+                    double req = Double.longBitsToDouble(s.get(i)[2]);
+                    if (Math.abs(req - s.get(i)[3]) > 1.0) quant++;
+                    if (i > 0 && s.get(i)[0] - s.get(i-1)[0] < 100_000_000L) {
+                        double dd = s.get(i)[3] - s.get(i-1)[3];
+                        dl.add(dd);
+                        if (dl.size() > 1) jk.add(Math.abs(dd - dl.get(dl.size()-2)));
+                    }
+                }
+                sb.append("px/frame ").append(stats(dl)).append("\n");
+                sb.append("jerk(px) ").append(stats(jk)).append(" requested!=actual frames=").append(quant).append("\n");
                 sb.append("gap(ms) ").append(stats(gaps)).append("\n");
                 sb.append("setValue->paintDone(ms) ").append(stats(paints)).append("\n");
                 write(sb.toString());
