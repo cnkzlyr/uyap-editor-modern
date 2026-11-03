@@ -20,21 +20,29 @@ namespace UYAPLauncher
                 if (!File.Exists(javaCmd))
                 {
                     string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                    string altJava = Path.Combine(localAppData, @"UYAPEditorModern\jdk-14.0.2\bin\javaw.exe");
+                    string altJava = Path.Combine(localAppData, @"Programs\UYAP Editor Modern\jdk-14.0.2\bin\javaw.exe");
                     if (File.Exists(altJava))
                     {
                         javaCmd = altJava;
                     }
                     else
                     {
-                        string javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
-                        if (!string.IsNullOrEmpty(javaHome) && File.Exists(Path.Combine(javaHome, @"bin\javaw.exe")))
+                        altJava = Path.Combine(localAppData, @"UYAPEditorModern\jdk-14.0.2\bin\javaw.exe");
+                        if (File.Exists(altJava))
                         {
-                            javaCmd = Path.Combine(javaHome, @"bin\javaw.exe");
+                            javaCmd = altJava;
                         }
                         else
                         {
-                            javaCmd = "javaw.exe";
+                            string javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
+                            if (!string.IsNullOrEmpty(javaHome) && File.Exists(Path.Combine(javaHome, @"bin\javaw.exe")))
+                            {
+                                javaCmd = Path.Combine(javaHome, @"bin\javaw.exe");
+                            }
+                            else
+                            {
+                                javaCmd = "javaw.exe";
+                            }
                         }
                     }
                 }
@@ -49,9 +57,8 @@ namespace UYAPLauncher
                 if (string.IsNullOrEmpty(sysRoot)) sysRoot = @"C:\Windows";
                 string pkcs11Opts = string.Format("-Djava.library.path=\"{0};{1}\\System32;{1}\\SysWOW64\"", baseDir, sysRoot);
 
-                // 4. UI, Donanim Ivmelendirme (OpenGL) ve Performans Parametreleri (120Hz/240Hz)
+                // 4. UI ve Performans Parametreleri (Orijinal Kararli Yapilandirma)
                 string fontOpts = "-Dawt.useSystemAAFontSettings=lcd -Dswing.aatext=true";
-                string accelOpts = "-Dsun.java2d.opengl=true -Dsun.java2d.d3d=false -Dsun.java2d.noddraw=true -Dsun.java2d.renderer=sun.java2d.marlin.MarlinRenderingEngine -XX:+ForceTimeHighResolution";
                 string memOpts = "-Xms256m -Xmx1024m -XX:+UseG1GC -XX:+UseStringDeduplication";
 
                 // 5. Profil ve Ayarlar (.uki)
@@ -80,7 +87,6 @@ namespace UYAPLauncher
                 sb.Append(pkcs11Opts).Append(" ");
                 sb.Append(memOpts).Append(" ");
                 sb.Append(fontOpts).Append(" ");
-                sb.Append(accelOpts).Append(" ");
                 if (!string.IsNullOrEmpty(agentOpt))
                 {
                     sb.Append(agentOpt).Append(" ");

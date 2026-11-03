@@ -47,9 +47,8 @@ if exist "%BASE_DIR%\uyap-modernizer.jar" (
 :: E-Imza & Akilli Kart (Windows akisp11.dll & ArkSigner)
 set "PKCS11_OPTS=-Djava.library.path=%BASE_DIR%;%SystemRoot%\System32;%SystemRoot%\SysWOW64"
 
-:: UI, Donanim Ivmelendirme (OpenGL) ve 120Hz/240Hz Performans Parametreleri
+:: UI & Performans Parametreleri
 set "FONT_OPTS=-Dawt.useSystemAAFontSettings=lcd -Dswing.aatext=true"
-set "ACCEL_OPTS=-Dsun.java2d.opengl=true -Dsun.java2d.d3d=false -Dsun.java2d.noddraw=true -Dsun.java2d.renderer=sun.java2d.marlin.MarlinRenderingEngine -XX:+ForceTimeHighResolution"
 set "MEM_OPTS=-Xms256m -Xmx1024m -XX:+UseG1GC -XX:+UseStringDeduplication"
 
 :: Hedef dosya kontrolü ve tip tespiti (.udf doküman / .usf şablon)
@@ -57,7 +56,7 @@ set "TARGET=%~1"
 set "EDITOR_TYPE=EDITOR_TYPE_TEMPLATE"
 if defined TARGET (
     if /I "%TARGET:~-4%"==".udf" set "EDITOR_TYPE=EDITOR_TYPE_DOCUMENT"
-    start "" "%JAVA_CMD%" %PKCS11_OPTS% %MEM_OPTS% %FONT_OPTS% %ACCEL_OPTS% %AGENT_OPTS% -cp "%CP_PATH%" tr.com.havelsan.uyap.system.editor.common.WPAppManager "getNewWPInstance" !EDITOR_TYPE! "%TARGET%"
+    start "" "%JAVA_CMD%" %PKCS11_OPTS% %MEM_OPTS% %FONT_OPTS% %AGENT_OPTS% -cp "%CP_PATH%" tr.com.havelsan.uyap.system.editor.common.WPAppManager "getNewWPInstance" !EDITOR_TYPE! "%TARGET%"
 ) else (
-    start "" "%JAVA_CMD%" %PKCS11_OPTS% %MEM_OPTS% %FONT_OPTS% %ACCEL_OPTS% %AGENT_OPTS% -cp "%CP_PATH%" tr.com.havelsan.uyap.system.editor.common.WPAppManager "getNewWPInstance" "EDITOR_TYPE_TEMPLATE"
+    start "" "%JAVA_CMD%" %PKCS11_OPTS% %MEM_OPTS% %FONT_OPTS% %AGENT_OPTS% -cp "%CP_PATH%" tr.com.havelsan.uyap.system.editor.common.WPAppManager "getNewWPInstance" "EDITOR_TYPE_TEMPLATE"
 )
