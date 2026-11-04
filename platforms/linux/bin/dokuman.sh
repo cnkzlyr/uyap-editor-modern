@@ -81,14 +81,52 @@ export LD_LIBRARY_PATH="$HOME/.local/lib:$BASE_DIR:$BASE_DIR/jdk-14.0.2/lib:/usr
 PKCS11_OPTS="-Djava.library.path=$HOME/.local/lib:$BASE_DIR:$BASE_DIR/jdk-14.0.2/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu:/usr/lib"
 [ -n "$PCSC_LIB" ] && PKCS11_OPTS="-Dsun.security.smartcardio.library=$PCSC_LIB $PKCS11_OPTS"
 
-# UI & Performans Ayarları
-if [ "$UYAP_SCALE" != "" ] && [ "$UYAP_SCALE" != "auto" ]; then
+# UI & Performans Ayarları (DPI & HiDPI Ölçeklendirme)
+if [ -n "$UYAP_SCALE" ] && [ "$UYAP_SCALE" != "auto" ]; then
     SCALE_OPTS="-Dsun.java2d.uiScale=$UYAP_SCALE"
 else
-    SCALE_OPTS="-Dsun.java2d.uiScale.enabled=true"
+    DETECTED_SCALE=""
+    if [ -n "$GDK_SCALE" ] && [ "$GDK_SCALE" != "0" ]; then
+        DETECTED_SCALE="$GDK_SCALE"
+    fi
+    if [ -z "$DETECTED_SCALE" ]; then
+        XFT_DPI="$(xrdb -query 2>/dev/null | awk -F':\t*' '/Xft\.dpi/ {print $2}')"
+        if [ -n "$XFT_DPI" ] && [ "$XFT_DPI" -gt 0 ] 2>/dev/null; then
+            DETECTED_SCALE="$(awk "BEGIN {val=$XFT_DPI/96; if (val==int(val)) printf \"%d\", val; else printf \"%.2f\", val}")"
+        fi
+    fi
+    if [ -z "$DETECTED_SCALE" ]; then
+        GNOME_SCALE="$(gsettings get org.gnome.desktop.interface scaling-factor 2>/dev/null | awk '{print $2}')"
+        if [ -n "$GNOME_SCALE" ] && [ "$GNOME_SCALE" -gt 0 ] 2>/dev/null; then
+            DETECTED_SCALE="$GNOME_SCALE"
+        fi
+    fi
+    if [ -z "$DETECTED_SCALE" ] && [ -f "$HOME/.config/monitors.xml" ]; then
+        MON_SCALE="$(grep -m 1 "<scale>" "$HOME/.config/monitors.xml" 2>/dev/null | sed -E 's/.*<scale>([0-9.]+).*/\1/')"
+        if [ -n "$MON_SCALE" ]; then
+            DETECTED_SCALE="$MON_SCALE"
+        fi
+    fi
+
+    if [ -n "$DETECTED_SCALE" ] && [ "$DETECTED_SCALE" != "1" ]; then
+        SCALE_OPTS="-Dsun.java2d.uiScale=$DETECTED_SCALE"
+    else
+        SCALE_OPTS="-Dsun.java2d.uiScale.enabled=true"
+    fi
 fi
 
-FONT_OPTS="-Dawt.useSystemAAFontSettings=lcd -Dswing.aatext=true"
+# Font ve Kenar Yumuşatma Ayarları (Sistem/GNOME font ayarlarıyla eşitle)
+AA_SETTING="on"
+GNOME_AA="$(gsettings get org.gnome.desktop.interface font-antialiasing 2>/dev/null | tr -d "'")"
+if [ "$GNOME_AA" = "rgba" ]; then
+    AA_SETTING="lcd"
+elif [ "$GNOME_AA" = "grayscale" ]; then
+    AA_SETTING="on"
+elif [ "$GNOME_AA" = "none" ]; then
+    AA_SETTING="off"
+fi
+
+FONT_OPTS="-Dawt.useSystemAAFontSettings=$AA_SETTING -Dswing.aatext=true -Dsun.java2d.renderer=sun.java2d.marlin.MarlinRenderingEngine"
 ACCEL_OPTS="-Dsun.java2d.xrender=false"
 GC_OPTS="-XX:+UseG1GC -XX:+UseStringDeduplication"
 MEM_OPTS="-Xms${UYAP_XMS:-256m} -Xmx${UYAP_XMX:-1024m}"
