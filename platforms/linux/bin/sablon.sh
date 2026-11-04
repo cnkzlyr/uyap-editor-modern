@@ -73,35 +73,15 @@ export LD_LIBRARY_PATH="$HOME/.local/lib:$BASE_DIR:$BASE_DIR/jdk-14.0.2/lib:/usr
 PKCS11_OPTS="-Djava.library.path=$HOME/.local/lib:$BASE_DIR:$BASE_DIR/jdk-14.0.2/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu:/usr/lib"
 [ -n "$PCSC_LIB" ] && PKCS11_OPTS="-Dsun.security.smartcardio.library=$PCSC_LIB $PKCS11_OPTS"
 
-# UI & Performans Ayarları (DPI & HiDPI Ölçeklendirme)
+# UI & Performans Ayarları
 if [ -n "$UYAP_SCALE" ] && [ "$UYAP_SCALE" != "auto" ]; then
     SCALE_OPTS="-Dsun.java2d.uiScale=$UYAP_SCALE"
 else
-    DETECTED_SCALE=""
-    if [ -n "$GDK_SCALE" ] && [ "$GDK_SCALE" != "0" ]; then
-        DETECTED_SCALE="$GDK_SCALE"
-    fi
-    if [ -z "$DETECTED_SCALE" ]; then
-        XFT_DPI="$(xrdb -query 2>/dev/null | awk -F':\t*' '/Xft\.dpi/ {print $2}')"
-        if [ -n "$XFT_DPI" ] && [ "$XFT_DPI" -gt 0 ] 2>/dev/null; then
-            DETECTED_SCALE="$(awk "BEGIN {val=$XFT_DPI/96; if (val==int(val)) printf \"%d\", val; else printf \"%.2f\", val}")"
-        fi
-    fi
-    if [ -z "$DETECTED_SCALE" ]; then
-        GNOME_SCALE="$(gsettings get org.gnome.desktop.interface scaling-factor 2>/dev/null | awk '{print $2}')"
-        if [ -n "$GNOME_SCALE" ] && [ "$GNOME_SCALE" -gt 0 ] 2>/dev/null; then
-            DETECTED_SCALE="$GNOME_SCALE"
-        fi
-    fi
-    if [ -z "$DETECTED_SCALE" ] && [ -f "$HOME/.config/monitors.xml" ]; then
-        MON_SCALE="$(grep -m 1 "<scale>" "$HOME/.config/monitors.xml" 2>/dev/null | sed -E 's/.*<scale>([0-9.]+).*/\1/')"
-        if [ -n "$MON_SCALE" ]; then
-            DETECTED_SCALE="$MON_SCALE"
-        fi
-    fi
-
-    if [ -n "$DETECTED_SCALE" ] && [ "$DETECTED_SCALE" != "1" ]; then
-        SCALE_OPTS="-Dsun.java2d.uiScale=$DETECTED_SCALE"
+    # Wayland / Xwayland oturumunda GNOME pencereyi 200% ölçekte zaten kendisi 2x büyütür.
+    # Java'ya da uiScale=2 verilirse çift ölçekleme (4x) oluşup butonlar devasa hale gelir.
+    # Bu yüzden Wayland altında Java ölçeği 1.0 olarak tutulur, X11'de ise otomatik bırakılır.
+    if [ "$XDG_SESSION_TYPE" = "wayland" ]; then
+        SCALE_OPTS="-Dsun.java2d.uiScale=1.0"
     else
         SCALE_OPTS="-Dsun.java2d.uiScale.enabled=true"
     fi
