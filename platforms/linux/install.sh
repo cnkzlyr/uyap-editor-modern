@@ -30,6 +30,32 @@ if [ -d "/usr/share/UYAPEditor" ]; then
     [ -d "/usr/share/UYAPEditor/images" ] && cp -rf /usr/share/UYAPEditor/images "$INSTALL_DIR/"
 fi
 
+# Sistemde resmi UYAPEditor yoksa doğrudan resmi paketten temin et
+if [ ! -f "$INSTALL_DIR/editor_lib.jar" ]; then
+    echo "Resmi UYAP paketleri indiriliyor (Adalet Bakanlığı)..."
+    TMP_UYAP=$(mktemp -d)
+    if curl -fL --progress-bar "https://rayp.adalet.gov.tr/resimler/2/dosya/uyapeditor_5.4.20_amd64.zip" -o "$TMP_UYAP/uyap.zip"; then
+        unzip -q -o "$TMP_UYAP/uyap.zip" -d "$TMP_UYAP"
+        if [ -f "$TMP_UYAP/uyapeditor_5.4.20_amd64.deb" ]; then
+            cd "$TMP_UYAP"
+            if command -v dpkg-deb >/dev/null 2>&1; then
+                dpkg-deb -x uyapeditor_5.4.20_amd64.deb "$TMP_UYAP/deb_out"
+            elif command -v ar >/dev/null 2>&1; then
+                ar x uyapeditor_5.4.20_amd64.deb data.tar.xz 2>/dev/null || ar x uyapeditor_5.4.20_amd64.deb data.tar.gz 2>/dev/null
+                mkdir -p "$TMP_UYAP/deb_out"
+                [ -f data.tar.xz ] && tar -xf data.tar.xz -C "$TMP_UYAP/deb_out"
+                [ -f data.tar.gz ] && tar -xf data.tar.gz -C "$TMP_UYAP/deb_out"
+            fi
+            if [ -d "$TMP_UYAP/deb_out/usr/share/UYAPEditor" ]; then
+                cp -rf "$TMP_UYAP/deb_out/usr/share/UYAPEditor/"*.jar "$INSTALL_DIR/" 2>/dev/null || true
+                [ -d "$TMP_UYAP/deb_out/usr/share/UYAPEditor/images" ] && cp -rf "$TMP_UYAP/deb_out/usr/share/UYAPEditor/images" "$INSTALL_DIR/"
+            fi
+            cd "$SCRIPT_DIR"
+        fi
+    fi
+    rm -rf "$TMP_UYAP"
+fi
+
 # Modernizer JAR'ı kopyala
 if [ -f "$ROOT_DIR/dist/uyap-modernizer.jar" ]; then
     cp -f "$ROOT_DIR/dist/uyap-modernizer.jar" "$INSTALL_DIR/"
@@ -59,7 +85,10 @@ if [ ! -d "$INSTALL_DIR/jdk-14.0.2" ]; then
         ln -sf "$HOME/.local/share/jvm/jdk-14.0.2" "$INSTALL_DIR/jdk-14.0.2"
     else
         echo "OpenJDK 14.0.2 indiriliyor..."
-        curl -sL "https://download.java.net/java/GA/jdk14.0.2/205943a0927447a7be1a4c57fb773708/12/GPL/openjdk-14.0.2_linux-x64_bin.tar.gz" | tar -xz -C "$INSTALL_DIR"
+        TMP_JDK=$(mktemp -d)
+        curl -fL --progress-bar "https://download.java.net/java/GA/jdk14.0.2/205943a0976c4ed48cb16f1043c5c647/12/GPL/openjdk-14.0.2_linux-x64_bin.tar.gz" | tar -xz -C "$TMP_JDK"
+        mv "$TMP_JDK/jdk-14.0.2" "$INSTALL_DIR/"
+        rm -rf "$TMP_JDK"
     fi
 fi
 
