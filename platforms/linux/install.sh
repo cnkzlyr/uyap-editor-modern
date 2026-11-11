@@ -22,7 +22,11 @@ mkdir -p "$INSTALL_DIR" "$BIN_DIR" "$DESKTOP_DIR" "$MIME_DIR/packages" "$ICONS_D
 
 echo -e "[1/6] Editör dosyaları hazırlanıyor..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Depodan (platforms/linux/bin) ya da yayın paketinden (dosyalar kökte) kurulum
+if [ -d "$SCRIPT_DIR/bin" ]; then BIN_SRC="$SCRIPT_DIR/bin"; else BIN_SRC="$SCRIPT_DIR"; fi
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# yapılandırma: depoda config/, yayın paketinde paketin içindeki config/
+if [ -d "$SCRIPT_DIR/config" ]; then CONF_DIR="$SCRIPT_DIR/config"; else CONF_DIR="$ROOT_DIR/config"; fi
 
 # JAR dosyalarını kopyala
 if [ -d "/usr/share/UYAPEditor" ]; then
@@ -32,10 +36,17 @@ fi
 
 # Sistemde resmi UYAPEditor yoksa doğrudan resmi paketten temin et
 if [ ! -f "$INSTALL_DIR/editor_lib.jar" ]; then
-    echo "Resmi UYAP paketleri indiriliyor (Adalet Bakanlığı)..."
     TMP_UYAP=$(mktemp -d)
-    if curl -fL --progress-bar "https://rayp.adalet.gov.tr/resimler/2/dosya/uyapeditor_5.4.20_amd64.zip" -o "$TMP_UYAP/uyap.zip"; then
-        unzip -q -o "$TMP_UYAP/uyap.zip" -d "$TMP_UYAP"
+    if [ -f "$SCRIPT_DIR/uyapeditor_5.4.20_amd64.deb" ]; then
+        echo "Resmi UYAP paketi (paketin içinden) açılıyor..."
+        cp -f "$SCRIPT_DIR/uyapeditor_5.4.20_amd64.deb" "$TMP_UYAP/"
+        HAZIR=1
+    else
+        echo "Resmi UYAP paketleri indiriliyor (Adalet Bakanlığı)..."
+        HAZIR=0
+    fi
+    if [ "$HAZIR" = "1" ] || curl -fL --progress-bar "https://rayp.adalet.gov.tr/resimler/2/dosya/uyapeditor_5.4.20_amd64.zip" -o "$TMP_UYAP/uyap.zip"; then
+        [ -f "$TMP_UYAP/uyap.zip" ] && unzip -q -o "$TMP_UYAP/uyap.zip" -d "$TMP_UYAP"
         if [ -f "$TMP_UYAP/uyapeditor_5.4.20_amd64.deb" ]; then
             cd "$TMP_UYAP"
             if command -v dpkg-deb >/dev/null 2>&1; then
@@ -65,19 +76,26 @@ if [ -f "$ROOT_DIR/dist/uyap-modernizer.jar" ]; then
 fi
 
 # Başlatıcıları kopyala
-cp -f "$SCRIPT_DIR/bin/dokuman.sh" "$INSTALL_DIR/"
-cp -f "$SCRIPT_DIR/bin/sablon.sh" "$INSTALL_DIR/"
+cp -f "$BIN_SRC/dokuman.sh" "$INSTALL_DIR/"
+cp -f "$BIN_SRC/sablon.sh" "$INSTALL_DIR/"
 chmod +x "$INSTALL_DIR/dokuman.sh" "$INSTALL_DIR/sablon.sh"
 
 if [ -w "/usr/share/UYAPEditor" ]; then
-    cp -f "$SCRIPT_DIR/bin/dokuman.sh" "/usr/share/UYAPEditor/" 2>/dev/null || true
-    cp -f "$SCRIPT_DIR/bin/sablon.sh" "/usr/share/UYAPEditor/" 2>/dev/null || true
+    cp -f "$BIN_SRC/dokuman.sh" "/usr/share/UYAPEditor/" 2>/dev/null || true
+    cp -f "$BIN_SRC/sablon.sh" "/usr/share/UYAPEditor/" 2>/dev/null || true
 fi
 
 ln -sf "$INSTALL_DIR/dokuman.sh" "$BIN_DIR/uyap-dokuman"
 ln -sf "$INSTALL_DIR/sablon.sh" "$BIN_DIR/uyap-sablon"
 
 echo -e "[2/6] Java 14.0.2 kontrol ediliyor..."
+# Paketle gelen Java 14.0.2 (jlink, resmi OpenJDK) varsa o kullanılır: indirme gerekmez
+if [ -x "$SCRIPT_DIR/jdk-14.0.2/bin/java" ]; then
+    rm -rf "$INSTALL_DIR/jdk-14.0.2"
+    cp -a "$SCRIPT_DIR/jdk-14.0.2" "$INSTALL_DIR/"
+    echo "  Paketteki Java 14.0.2 kuruldu."
+fi
+[ -f "$SCRIPT_DIR/uyap-modernizer.jar" ] && cp -f "$SCRIPT_DIR/uyap-modernizer.jar" "$INSTALL_DIR/"
 if [ ! -d "$INSTALL_DIR/jdk-14.0.2" ]; then
     if [ -d "/usr/share/UYAPEditor/jdk-14.0.2" ]; then
         ln -sf /usr/share/UYAPEditor/jdk-14.0.2 "$INSTALL_DIR/jdk-14.0.2"
@@ -99,6 +117,31 @@ if [ -f "$HOME/.local/opt/Akia/libakisp11.so" ]; then
 elif [ -f "/usr/share/UYAPEditor/libakisp11.so" ]; then
     ln -sf "/usr/share/UYAPEditor/libakisp11.so" "$HOME/.local/lib/libakisp11.so"
 fi
+
+# Microsoft Core Fonts (Times New Roman, Arial, Courier New ...): paketteki ORİJİNAL .exe kurulum dosyalarından
+# yalnızca bu bilgisayara açılır (lisans: değiştirilmemiş .exe biçiminde dağıtılabilir). UYAP belgeleri ve PDF çıktısı
+# Windows'takiyle aynı yazı tipiyle görünür.
+ms_fontlari() {
+    local kaynak="$1" hedef="$HOME/.local/share/fonts/uyap-msfonts" gecici
+    [ -d "$kaynak" ] || return 0
+    mkdir -p "$hedef"; gecici=$(mktemp -d)
+    for exe in "$kaynak"/*.exe; do
+        [ -f "$exe" ] || continue
+        if command -v cabextract >/dev/null 2>&1; then cabextract -q -L -d "$gecici" "$exe" >/dev/null 2>&1
+        elif command -v bsdtar >/dev/null 2>&1; then bsdtar -xf "$exe" -C "$gecici" >/dev/null 2>&1
+        elif command -v 7z >/dev/null 2>&1; then 7z e -y -o"$gecici" "$exe" >/dev/null 2>&1
+        else echo "  (uyarı) cabextract / bsdtar / 7z yok: sudo apt install cabextract (ya da dnf install cabextract)"; break; fi
+    done
+    find "$gecici" -iname '*.ttf' -exec cp -f {} "$hedef/" \; 2>/dev/null
+    local n; n=$(ls "$hedef" 2>/dev/null | wc -l)
+    if [ "$n" -gt 0 ]; then
+        mkdir -p "$INSTALL_DIR/jdk-14.0.2/lib/fonts" 2>/dev/null && cp -f "$hedef"/* "$INSTALL_DIR/jdk-14.0.2/lib/fonts/" 2>/dev/null || true
+        command -v fc-cache >/dev/null 2>&1 && fc-cache -f "$hedef" >/dev/null 2>&1 || true
+        echo "  Windows yazı tipleri kuruldu ($n dosya): $hedef"
+    fi
+    rm -rf "$gecici"
+}
+ms_fontlari "$SCRIPT_DIR/fonts-ms"
 
 echo -e "[4/6] İkonlar kopyalanıyor..."
 if [ -d "$SCRIPT_DIR/icons/hicolor" ]; then
@@ -137,8 +180,8 @@ xdg-mime default sablon.desktop application/x-usf 2>/dev/null || true
 
 echo -e "[6/6] Yapılandırma dosyaları..."
 mkdir -p "$HOME/.uki"
-[ ! -f "$HOME/.uki/modernizer.properties" ] && cp -f "$ROOT_DIR/config/modernizer.properties" "$HOME/.uki/"
-[ ! -f "$HOME/.uki/uyap.conf" ] && cp -f "$ROOT_DIR/config/uyap.conf" "$HOME/.uki/"
+[ ! -f "$HOME/.uki/modernizer.properties" ] && cp -f "$CONF_DIR/modernizer.properties" "$HOME/.uki/"
+[ ! -f "$HOME/.uki/uyap.conf" ] && cp -f "$CONF_DIR/uyap.conf" "$HOME/.uki/"
 
 # UYAP'ın eski Linux font arama yolu için sembolik bağlantı (yazma izni varsa)
 if [ -w "/usr/share/fonts" ] && [ ! -e "/usr/share/fonts/allFonts" ]; then

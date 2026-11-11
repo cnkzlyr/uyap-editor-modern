@@ -23,7 +23,7 @@ rm -rf "$BUILD_DIR/classes/META-INF"
 rm -f "$BUILD_DIR/classes/module-info.class"
 
 echo "[3/4] Java kaynak kodları ve kaynak dosyalar hazırlanıyor..."
-find "$SRC_DIR" -name "*.java" > "$BUILD_DIR/sources.txt"
+find "$SRC_DIR" -name "*.java" -not -path "*/tr/gov/tubitak/*" > "$BUILD_DIR/sources.txt"   # ESYA lisans denetimine dokunan sınıflar derlenmez
 
 # İkonları paket içine kopyala (Pencere ve dock için HiDPI ikonlar)
 mkdir -p "$BUILD_DIR/classes/icons"
@@ -49,7 +49,7 @@ else
     JAR="jar"
 fi
 
-"$JAVAC" -encoding UTF-8 -cp "$BUILD_DIR/classes:/usr/share/UYAPEditor/*" -d "$BUILD_DIR/classes" @"$BUILD_DIR/sources.txt"
+"$JAVAC" --release 11 -encoding UTF-8 -cp "$BUILD_DIR/classes:/usr/share/UYAPEditor/*" -d "$BUILD_DIR/classes" @"$BUILD_DIR/sources.txt"
 
 echo "[4/4] uyap-modernizer.jar paketleniyor..."
 cat << 'EOF' > "$BUILD_DIR/MANIFEST.MF"

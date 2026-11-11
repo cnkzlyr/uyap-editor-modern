@@ -38,11 +38,15 @@ if exist "%BASE_DIR%\jdk-14.0.2\bin\javaw.exe" (
 :: Classpath Olusturma
 if exist "%BASE_DIR%\uyap-modernizer.jar" (
     set "CP_PATH=%BASE_DIR%\uyap-modernizer.jar;%BASE_DIR%\*"
-    set "AGENT_OPTS=-javaagent:%BASE_DIR%\uyap-modernizer.jar"
+    set AGENT_OPTS="-javaagent:%BASE_DIR%\uyap-modernizer.jar"
 ) else (
     set "CP_PATH=%BASE_DIR%\*"
     set "AGENT_OPTS="
 )
+
+:: E-imza: Unicode PC/SC ajani. JDK'nin Windows PC/SC katmani adinda Turkce karakter olan okuyuculari
+:: (ArkSigner: "Microsoft Usbccid Akilli Kart Okuyucusu (WUDF)") acamiyor; ajan Windows'un Unicode islevlerini kullanir.
+if exist "%BASE_DIR%\uyap-pcsc-agent.jar" set AGENT_OPTS=%AGENT_OPTS% "-javaagent:%BASE_DIR%\uyap-pcsc-agent.jar"
 
 :: E-Imza & Akilli Kart (Windows akisp11.dll & ArkSigner)
 set "PKCS11_OPTS=-Djava.library.path=%BASE_DIR%;%SystemRoot%\System32;%SystemRoot%\SysWOW64"
