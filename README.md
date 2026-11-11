@@ -31,6 +31,8 @@ Resmi **UYAP Doküman & Şablon Editörü** için geliştirilmiş çoklu platfor
   * **Windows:** Windows 10 & 11 (PowerShell tek tıkla kurulum, sessiz VBS başlatıcı, `.udf`/`.usf` kayıt defteri eşleme).
   * **macOS:** Apple Silicon (M1/M2/M3/M4) ve Intel işlemcili Mac'ler (Doküman ve Şablon başlatıcıları).
   * **Android:** Termux & Termux:X11 + Fluxbox üzerinden tablet ve telefonlarda tam masaüstü UYAP deneyimi.
+  * **Android (bağımsız, YENİ):** Termux / X11 / Termux:API **olmadan**, Java 14.0.2 ile dokunmatik UYAP Editör — CanEditor içindeki
+    "UYAP Editör" simgesi; .udf/.usf her uygulamadan doğrudan açılır. Ayrıntılar: [`platforms/android-uygulama`](platforms/android-uygulama/README.md)
 
 ---
 
