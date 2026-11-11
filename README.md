@@ -16,7 +16,6 @@ Resmi **UYAP Doküman & Şablon Editörü** için geliştirilmiş çoklu platfor
   * Klavyeden tek tuşla açma/kapatma (**`F9`**).
 * **🖊️ Tam E-İmza & Akıllı Kart Desteği:**
   * **Arkİmza** (ArkSigner / NES ECC) ve **TBB Kırmızı Token** (ACS ACR39U / TÜRKTRUST) otomatik sürücü ve slot algılama.
-  * TÜBİTAK UEKAE ESYA API lisans denetim katmanı baypası (lisans hatası almadan sorunsuz e-imzalama).
 * **🎨 Modern Arayüz Temaları (FlatLaf Entegre):**
   * Modern Açık (Flat Light) ve Modern Koyu (Flat Dark) tema seçenekleri.
   * Subpixel LCD font antialiasing ile keskin yazı tipi kalitesi.
@@ -36,6 +35,21 @@ Resmi **UYAP Doküman & Şablon Editörü** için geliştirilmiş çoklu platfor
 
 ---
 
+## 🆕 v2.2.0
+
+* **Java 14.0.2 paketlerin içinde** (Linux, Windows, macOS): resmi OpenJDK 14.0.2, jlink ile küçültülmüş; ayrıca indirmeye gerek yok.
+* **Windows yazı tipleri Linux ve macOS'ta:** Times New Roman, Arial, Courier New, Georgia, Verdana, Trebuchet, Comic Sans,
+  Impact, Andale Mono, Arial Black, Webdings. Microsoft'un lisansı gereği **orijinal Core Fonts kurulum dosyaları (.exe)**
+  değiştirilmeden pakete konur; `install.sh` bunları kurulumda yalnızca sizin bilgisayarınıza açar (Linux: cabextract / bsdtar / 7z,
+  macOS: yerleşik tar). Belge ve PDF çıktısı Windows'takiyle aynı yazı tipiyle görünür.
+* **E-imza:** Windows'ta adında Türkçe karakter olan okuyucular (ArkSigner: "Microsoft Usbccid Akıllı Kart Okuyucusu (WUDF)")
+  JDK'nın PC/SC katmanında açılamıyordu → `uyap-pcsc-agent.jar` (Unicode PC/SC, JNA). AKİS kartlar editörün **APDU kipiyle**
+  sürücüsüz imzalanır (Araçlar menüsü); Linux'ta `pcscd` + `ccid` gerekir (`drivers/setup-eimza.sh`).
+* **Düzeltmeler:** ajan Java 14 uyumlu derlenir (v2.1.0 jar'ı Java 17 sınıf sürümüyleydi ve Java 14'te yüklenmiyordu);
+  yayın paketlerinden kurulum (`bin/` klasörü olmadan) Linux ve Windows'ta çalışır; macOS kurulumu resmi editör dosyalarını da yerleştirir.
+* **Lisans:** ESYA lisans denetimine dokunan sınıflar (`core/src/tr/gov/tubitak/**`) artık derlenmez ve dağıtılmaz.
+* **Android (Termux/X11'siz):** bağımsız "UYAP Editör" uygulaması — [`platforms/android-uygulama`](platforms/android-uygulama/README.md).
+
 ## 📦 Kurulum ve Kullanım
 
 ### 1. Linux (Fedora, Ubuntu, Debian, Pardus, Arch)
@@ -54,7 +68,7 @@ Kurulum sonrasında uygulama menünüzden **UYAP Doküman Editörü Modern** vey
 
 #### Seçenek A: Tek Tıkla Setup (.exe) Kurulumu (Önerilen)
 Releases sayfasından **`UYAP-Editor-Modern-Setup.exe`** dosyasını indirin ve kurun:
-* **Tam Bağımsız (Self-Contained):** OpenJDK 14.0.2, resmi UYAP kütüphaneleri ve AKİS e-imza (`akisp11.dll`) sürücüsü kurulum paketinin içine gömülüdür.
+* **Tam Bağımsız (Self-Contained):** OpenJDK 14.0.2 ve resmi UYAP kütüphaneleri kurulum paketinin içine gömülüdür.
 * **Yerel .exe Başlatıcılar:** Konsol penceresi açılmaksızın doğrudan çalışan yüksek performanslı modern başlatıcılar (`UYAP Dokuman Editoru.exe` ve `UYAP Sablon Editoru.exe`).
 * **Otomatik Dosya İlişkilendirme:** `.udf` ve `.usf` uzantıları ikonlarıyla birlikte sisteme kaydedilir.
 

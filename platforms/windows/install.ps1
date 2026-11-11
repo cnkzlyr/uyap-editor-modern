@@ -20,9 +20,20 @@ if (-not (Test-Path $InstallDir)) {
 }
 
 Write-Host "[1/6] Editor dosyalari kopyalaniyor..." -ForegroundColor Yellow
-Copy-Item -Path "$ScriptDir\bin\*" -Destination $InstallDir -Force
+# Depodan (platforms\windows\bin) ya da yayın zip'inden (dosyalar kökte) kurulum
+if (Test-Path "$ScriptDir\bin") { $Kaynak = "$ScriptDir\bin" } else { $Kaynak = $ScriptDir }
+Copy-Item -Path "$Kaynak\*.bat","$Kaynak\*.vbs","$Kaynak\*.exe" -Destination $InstallDir -Force -ErrorAction SilentlyContinue
 if (Test-Path "$RootDir\dist\uyap-modernizer.jar") {
     Copy-Item -Path "$RootDir\dist\uyap-modernizer.jar" -Destination $InstallDir -Force
+}
+foreach ($j in @("uyap-modernizer.jar", "uyap-pcsc-agent.jar")) {
+    if (Test-Path "$ScriptDir\$j") { Copy-Item -Path "$ScriptDir\$j" -Destination $InstallDir -Force }
+}
+# Paketle gelen Java 14.0.2 (resmi OpenJDK, jlink): indirme gerekmez
+if (Test-Path "$ScriptDir\jdk-14.0.2\bin\javaw.exe") {
+    if (Test-Path "$InstallDir\jdk-14.0.2") { Remove-Item "$InstallDir\jdk-14.0.2" -Recurse -Force -ErrorAction SilentlyContinue }
+    Copy-Item -Path "$ScriptDir\jdk-14.0.2" -Destination $InstallDir -Recurse -Force
+    Write-Host "  Paketteki Java 14.0.2 kuruldu." -ForegroundColor Green
 }
 
 # Resmi UYAP kurulu ise JAR ve varliklari kopyala
