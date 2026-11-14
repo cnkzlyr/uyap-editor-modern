@@ -11,10 +11,23 @@ Write-Host "         UYAP Editör Modern - Windows Kurulumu            " -Foregr
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 $InstallDir = "$env:LOCALAPPDATA\UYAPEditorModern"
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
-if (-not $ScriptDir) { $ScriptDir = Get-Location }
-$RootDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 $CacheDir = "$env:TEMP\uyap_install_cache"
+
+# Güvenli dizin tespiti (Doğrudan çalıştırma, ps1 dosyasından çağırma veya 'irm ... | iex' uyumlu)
+if ($PSScriptRoot -and (Test-Path $PSScriptRoot)) {
+    $ScriptDir = $PSScriptRoot
+} elseif ($MyInvocation.MyCommand.Path -and (Test-Path $MyInvocation.MyCommand.Path)) {
+    $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+} else {
+    $ScriptDir = (Get-Location).Path
+}
+
+$RootDir = $null
+if (Test-Path "$ScriptDir\..\..\platforms") {
+    $RootDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
+} elseif (Test-Path "$ScriptDir\platforms") {
+    $RootDir = $ScriptDir
+}
 
 if (-not (Test-Path $CacheDir)) {
     New-Item -ItemType Directory -Path $CacheDir -Force | Out-Null
@@ -28,26 +41,31 @@ if (-not (Test-Path $InstallDir)) {
 # ------------------------------------------------------------------------------
 Write-Host "`n[1/8] Editör dosyaları kopyalanıyor..." -ForegroundColor Yellow
 
-$KaynakDirs = @("$ScriptDir\bin", "$ScriptDir", "$RootDir\platforms\windows\bin")
+$KaynakDirs = @("$ScriptDir\bin", "$ScriptDir")
+if ($RootDir) { $KaynakDirs += "$RootDir\platforms\windows\bin" }
 foreach ($kd in $KaynakDirs) {
-    if (Test-Path $kd) {
+    if ($kd -and (Test-Path $kd)) {
         Copy-Item -Path "$kd\*.bat","$kd\*.vbs" -Destination $InstallDir -Force -ErrorAction SilentlyContinue
     }
 }
 
 foreach ($j in @("uyap-modernizer.jar", "uyap-pcsc-agent.jar")) {
     $foundJar = $false
-    foreach ($dir in @($ScriptDir, "$RootDir\dist", "$RootDir\build", "$ScriptDir\..")) {
-        $p = Join-Path $dir $j
-        if (Test-Path $p) {
-            Copy-Item -Path $p -Destination $InstallDir -Force
-            $foundJar = $true
-            break
+    $SearchDirs = @($ScriptDir, "$ScriptDir\..")
+    if ($RootDir) { $SearchDirs += @("$RootDir\dist", "$RootDir\build") }
+    foreach ($dir in $SearchDirs) {
+        if ($dir -and (Test-Path $dir)) {
+            $p = Join-Path $dir $j
+            if (Test-Path $p) {
+                Copy-Item -Path $p -Destination $InstallDir -Force
+                $foundJar = $true
+                break
+            }
         }
     }
     if (-not $foundJar -and -not (Test-Path "$InstallDir\$j")) {
         Write-Host "  $j indiriliyor (GitHub)..." -ForegroundColor Yellow
-        $jarUrl = "https://github.com/cnkzlyr/uyap-editor-modern/releases/download/v2.2.0/$j"
+        $jarUrl = "https://github.com/cnkzlyr/uyap-editor-modern/releases/download/v2.2.1/$j"
         curl.exe -fsSL "$jarUrl" -o "$InstallDir\$j"
     }
 }
@@ -59,13 +77,14 @@ Write-Host "`n[2/8] Logo ve ikon varlıkları hazırlanıyor..." -ForegroundColo
 
 $IconDirs = @(
     "$ScriptDir\icons",
-    "$ScriptDir",
-    "$RootDir\platforms\windows\icons",
-    "$RootDir\platforms\windows"
+    "$ScriptDir"
 )
+if ($RootDir) {
+    $IconDirs += @("$RootDir\platforms\windows\icons", "$RootDir\platforms\windows")
+}
 
 foreach ($id in $IconDirs) {
-    if (Test-Path $id) {
+    if ($id -and (Test-Path $id)) {
         Copy-Item -Path "$id\*.ico","$id\*.gif" -Destination $InstallDir -Force -ErrorAction SilentlyContinue
     }
 }
@@ -546,9 +565,10 @@ if (-not (Test-Path $UkiDir)) {
     New-Item -ItemType Directory -Path $UkiDir -Force | Out-Null
 }
 
-$ConfigDirs = @("$ScriptDir\config", "$ScriptDir", "$RootDir\config")
+$ConfigDirs = @("$ScriptDir\config", "$ScriptDir")
+if ($RootDir) { $ConfigDirs += "$RootDir\config" }
 foreach ($cd in $ConfigDirs) {
-    if (Test-Path "$cd\modernizer.properties") {
+    if ($cd -and (Test-Path "$cd\modernizer.properties")) {
         if (-not (Test-Path "$UkiDir\modernizer.properties")) {
             Copy-Item "$cd\modernizer.properties" "$UkiDir\" -Force
         }
