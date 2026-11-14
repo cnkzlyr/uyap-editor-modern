@@ -50,12 +50,13 @@ jobs:
           name: "UYAP Editör Modern ${{ github.event.inputs.tag || github.ref_name }}"
           body: |
             ### UYAP Editör Modern ${{ github.event.inputs.tag || github.ref_name }} Yenilikleri
+            * **Windows İkon & Logo Entegrasyonu:** Resmi yüksek çözünürlüklü UYAP Doküman ve Şablon logoları (`.ico`) pakete dahil edildi.
+            * **Başlat Menüsü ve Kurulu Program:** Windows Başlat Menüsü ve arama entegrasyonu sağlandı, 'Program Ekle veya Kaldır' listesine kaydedildi.
+            * **.udf ve .usf Çift Tıklama:** Dosya ilişkilendirmeleri yönetici iznine gerek kalmadan Windows ile tam uyumlu hale getirildi, çift tıklamayla anında açılma sağlandı.
+            * **Bağımsız Windows Paketi:** Resmi UYAP kütüphaneleri (`editor_lib.jar` vb.), e-imza ajanı ve C# yerel başlatıcıları Windows zip paketine eklendi.
             * **Java 14.0.2 paketin içinde (Linux, Windows, macOS):** resmi OpenJDK 14.0.2, jlink ile küçültülmüş — ayrıca Java indirmeye gerek yok.
             * **Windows yazı tipleri (Linux & macOS):** Times New Roman, Arial, Courier New, Georgia, Verdana… Microsoft'un orijinal Core Fonts kurulum dosyalarından kurulumda açılır; belge ve PDF Windows'takiyle aynı görünür.
             * **E-imza:** Windows'ta Türkçe adlı okuyucular (ArkSigner) için Unicode PC/SC ajanı; AKİS kartlar editörün APDU kipiyle sürücüsüz imzalanır (Araçlar menüsü).
-            * **Düzeltme:** ajan artık Java 14 uyumlu derlenir (v2.1.0'daki jar Java 17 sınıf sürümüyle derlenmişti).
-            * **Android (YENİ):** Termux/X11'siz bağımsız UYAP Editör — https://github.com/cnkzlyr/udemobile/releases (UYAP-Editor-vX.apk).
             * **120Hz & 240Hz Akıcı Kaydırma (Smooth Scrolling):** Donanım ekran yenileme hızına duyarlı momentum kaydırma (`F9`).
-            * **Tam E-İmza & PKCS#11 Uyumluluğu:** Arkİmza (NES ECC) ve TBB Kırmızı Token (ACS ACR39U / TÜRKTRUST) otomatik algılama ve imzalama desteği.
             * **Modern FlatLaf Arayüz Temaları:** Modern Açık, Koyu ve Sistem temaları.
-            * **Çoklu Platform:** Linux (Fedora/Ubuntu/Pardus/Arch), Windows 10/11, macOS (Intel & Apple Silicon) ve Android (Termux-X11) desteği.
+
