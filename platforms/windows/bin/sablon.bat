@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+chcp 65001 >nul 2>&1
 
 :: ==============================================================================
 :: UYAP Sablon Editoru - Modern Windows Baslatici
@@ -42,6 +43,19 @@ if exist "%BASE_DIR%\uyap-modernizer.jar" (
 ) else (
     set "CP_PATH=%BASE_DIR%\*"
     set "AGENT_OPTS="
+)
+
+:: Resmi UYAP kütüphaneleri (editor_lib.jar) fallback
+if not exist "%BASE_DIR%\editor_lib.jar" (
+    if exist "C:\Uyap\Uyap Kelime Islemci\editor_lib.jar" (
+        set "CP_PATH=%CP_PATH%;C:\Uyap\Uyap Kelime Islemci\*"
+    ) else if exist "%ProgramFiles(x86)%\UYAP\UYAPEditor\editor_lib.jar" (
+        set "CP_PATH=%CP_PATH%;%ProgramFiles(x86)%\UYAP\UYAPEditor\*"
+    ) else if exist "%ProgramFiles%\UYAP\UYAPEditor\editor_lib.jar" (
+        set "CP_PATH=%CP_PATH%;%ProgramFiles%\UYAP\UYAPEditor\*"
+    ) else if exist "C:\UYAPEditor\editor_lib.jar" (
+        set "CP_PATH=%CP_PATH%;C:\UYAPEditor\*"
+    )
 )
 
 :: E-imza: Unicode PC/SC ajani. JDK'nin Windows PC/SC katmani adinda Turkce karakter olan okuyuculari

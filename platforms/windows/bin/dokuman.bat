@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+chcp 65001 >nul 2>&1
 
 :: ==============================================================================
 :: UYAP Dokuman Editoru - Modern Windows Baslatici
@@ -13,6 +14,8 @@ if exist "%~dp0uyap-modernizer.jar" (
     set "BASE_DIR=%~dp0"
 ) else if exist "%~dp0..\uyap-modernizer.jar" (
     set "BASE_DIR=%~dp0.."
+) else if exist "%LOCALAPPDATA%\Programs\UYAP Editor Modern\uyap-modernizer.jar" (
+    set "BASE_DIR=%LOCALAPPDATA%\Programs\UYAP Editor Modern"
 ) else if exist "%LOCALAPPDATA%\UYAPEditorModern\uyap-modernizer.jar" (
     set "BASE_DIR=%LOCALAPPDATA%\UYAPEditorModern"
 ) else (
@@ -23,6 +26,8 @@ if "%BASE_DIR:~-1%"=="\" set "BASE_DIR=%BASE_DIR:~0,-1%"
 :: Java 14.0.2 Tespiti
 if exist "%BASE_DIR%\jdk-14.0.2\bin\javaw.exe" (
     set "JAVA_CMD=%BASE_DIR%\jdk-14.0.2\bin\javaw.exe"
+) else if exist "%LOCALAPPDATA%\Programs\UYAP Editor Modern\jdk-14.0.2\bin\javaw.exe" (
+    set "JAVA_CMD=%LOCALAPPDATA%\Programs\UYAP Editor Modern\jdk-14.0.2\bin\javaw.exe"
 ) else if exist "%LOCALAPPDATA%\UYAPEditorModern\jdk-14.0.2\bin\javaw.exe" (
     set "JAVA_CMD=%LOCALAPPDATA%\UYAPEditorModern\jdk-14.0.2\bin\javaw.exe"
 ) else if defined JAVA_HOME if exist "%JAVA_HOME%\bin\javaw.exe" (
@@ -38,6 +43,19 @@ if exist "%BASE_DIR%\uyap-modernizer.jar" (
 ) else (
     set "CP_PATH=%BASE_DIR%\*"
     set "AGENT_OPTS="
+)
+
+:: Resmi UYAP kütüphaneleri (editor_lib.jar) fallback
+if not exist "%BASE_DIR%\editor_lib.jar" (
+    if exist "C:\Uyap\Uyap Kelime Islemci\editor_lib.jar" (
+        set "CP_PATH=%CP_PATH%;C:\Uyap\Uyap Kelime Islemci\*"
+    ) else if exist "%ProgramFiles(x86)%\UYAP\UYAPEditor\editor_lib.jar" (
+        set "CP_PATH=%CP_PATH%;%ProgramFiles(x86)%\UYAP\UYAPEditor\*"
+    ) else if exist "%ProgramFiles%\UYAP\UYAPEditor\editor_lib.jar" (
+        set "CP_PATH=%CP_PATH%;%ProgramFiles%\UYAP\UYAPEditor\*"
+    ) else if exist "C:\UYAPEditor\editor_lib.jar" (
+        set "CP_PATH=%CP_PATH%;C:\UYAPEditor\*"
+    )
 )
 
 :: E-imza: Unicode PC/SC ajani. JDK'nin Windows PC/SC katmani adinda Turkce karakter olan okuyuculari

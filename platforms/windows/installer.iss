@@ -4,7 +4,7 @@
 ; ==============================================================================
 
 #define MyAppName "UYAP Editör Modern"
-#define MyAppVersion "2.1.0"
+#define MyAppVersion "2.2.0"
 #define MyAppPublisher "Can Kızılyar"
 #define MyAppURL "https://github.com/cnkzlyr/uyap-editor-modern"
 #define MyAppExeName "UYAP Dokuman Editoru.exe"
@@ -48,6 +48,7 @@ Name: "fileassoc"; Description: ".udf ve .usf dosyalarını UYAP Editör Modern 
 Source: "staging\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "staging\{#MyAppTemplateExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "staging\uyap-modernizer.jar"; DestDir: "{app}"; Flags: ignoreversion
+Source: "staging\uyap-pcsc-agent.jar"; DestDir: "{app}"; Flags: ignoreversion
 Source: "staging\editor_lib.jar"; DestDir: "{app}"; Flags: ignoreversion
 Source: "staging\editor_lib2.jar"; DestDir: "{app}"; Flags: ignoreversion
 Source: "staging\editor_utility.jar"; DestDir: "{app}"; Flags: ignoreversion
@@ -90,16 +91,22 @@ Name: "{autodesktop}\UYAP Şablon Editörü Modern"; Filename: "{app}\{#MyAppTem
 ; .udf İlişkilendirmesi
 Root: HKA; Subkey: "Software\Classes\.udf"; ValueType: string; ValueName: ""; ValueData: "UYAP.Document.Modern"; Flags: uninsdeletevalue; Tasks: fileassoc
 Root: HKA; Subkey: "Software\Classes\.udf"; ValueType: string; ValueName: "Content Type"; ValueData: "application/udf"; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKA; Subkey: "Software\Classes\.udf\OpenWithProgids"; ValueType: none; ValueName: "UYAP.Document.Modern"; Flags: uninsdeletevalue; Tasks: fileassoc
 Root: HKA; Subkey: "Software\Classes\UYAP.Document.Modern"; ValueType: string; ValueName: ""; ValueData: "UYAP Dokümanı"; Flags: uninsdeletekey; Tasks: fileassoc
 Root: HKA; Subkey: "Software\Classes\UYAP.Document.Modern\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\uyapicon.ico,0"; Tasks: fileassoc
 Root: HKA; Subkey: "Software\Classes\UYAP.Document.Modern\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: fileassoc
+Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: fileassoc
+Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".udf"; ValueData: ""; Tasks: fileassoc
 
 ; .usf İlişkilendirmesi
 Root: HKA; Subkey: "Software\Classes\.usf"; ValueType: string; ValueName: ""; ValueData: "UYAP.Template.Modern"; Flags: uninsdeletevalue; Tasks: fileassoc
 Root: HKA; Subkey: "Software\Classes\.usf"; ValueType: string; ValueName: "Content Type"; ValueData: "application/usf"; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKA; Subkey: "Software\Classes\.usf\OpenWithProgids"; ValueType: none; ValueName: "UYAP.Template.Modern"; Flags: uninsdeletevalue; Tasks: fileassoc
 Root: HKA; Subkey: "Software\Classes\UYAP.Template.Modern"; ValueType: string; ValueName: ""; ValueData: "UYAP Şablonu"; Flags: uninsdeletekey; Tasks: fileassoc
 Root: HKA; Subkey: "Software\Classes\UYAP.Template.Modern\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\uyap_ki_icon.ico,0"; Tasks: fileassoc
 Root: HKA; Subkey: "Software\Classes\UYAP.Template.Modern\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppTemplateExeName}"" ""%1"""; Tasks: fileassoc
+Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppTemplateExeName}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppTemplateExeName}"" ""%1"""; Tasks: fileassoc
+Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppTemplateExeName}\SupportedTypes"; ValueType: string; ValueName: ".usf"; ValueData: ""; Tasks: fileassoc
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent

@@ -16,6 +16,11 @@ if (-not (Test-Path $StagingDir)) { New-Item -ItemType Directory -Path $StagingD
 if (-not (Test-Path $DistDir)) { New-Item -ItemType Directory -Path $DistDir -Force | Out-Null }
 if (-not (Test-Path $CacheDir)) { New-Item -ItemType Directory -Path $CacheDir -Force | Out-Null }
 
+# İkonları staging'e aktar
+if (Test-Path "$ScriptDir\icons") {
+    Copy-Item "$ScriptDir\icons\*" "$StagingDir\" -Force -ErrorAction SilentlyContinue
+}
+
 # ------------------------------------------------------------------------------
 # 1. OpenJDK 14.0.2 Windows x64 Temini
 # ------------------------------------------------------------------------------
@@ -29,7 +34,7 @@ if (-not (Test-Path "$JdkTarget\bin\javaw.exe")) {
         curl.exe -L $JdkUrl -o $JdkZip
     }
     Write-Host "OpenJDK 14.0.2 aciliyor..." -ForegroundColor Yellow
-    & "C:\Program Files\7-Zip\7z.exe" x $JdkZip -o"$CacheDir\jdk_temp" -y | Out-Null
+    Expand-Archive -Path $JdkZip -DestinationPath "$CacheDir\jdk_temp" -Force
     Copy-Item -Path "$CacheDir\jdk_temp\jdk-14.0.2" -Destination $StagingDir -Recurse -Force
 }
 Write-Host "[OK] OpenJDK 14.0.2 hazir." -ForegroundColor Green
@@ -45,9 +50,12 @@ if ($MissingJars.Count -gt 0) {
     # Once yerel sistemde kurulu mu kontrol et
     $FoundLocal = $false
     $OfficialDirs = @(
+        "C:\Uyap\Uyap Kelime Islemci",
         (Join-Path ${env:ProgramFiles(x86)} "UYAP\UYAPEditor"),
         (Join-Path $env:ProgramFiles "UYAP\UYAPEditor"),
         "C:\UYAPEditor",
+        "C:\Program Files\Uyap Kelime Islemci",
+        (Join-Path ${env:ProgramFiles(x86)} "Uyap Kelime Islemci"),
         "$env:LOCALAPPDATA\UYAPEditorModern"
     )
     foreach ($dir in $OfficialDirs) {
@@ -68,13 +76,13 @@ if ($MissingJars.Count -gt 0) {
             curl.exe -sL "https://rayp.adalet.gov.tr/resimler/2/dosya/UKI_V5.4.20.msi" -o $MsiPath
         }
         $MsiExtractDir = "$CacheDir\msi_out"
-        if (-not (Test-Path $MsiExtractDir)) {
+        if (-not (Test-Path "$MsiExtractDir\editor_lib.jar")) {
             New-Item -ItemType Directory -Path $MsiExtractDir -Force | Out-Null
             Start-Process -FilePath "msiexec.exe" -ArgumentList "/a `"$MsiPath`" /qn TARGETDIR=`"$MsiExtractDir`"" -Wait
         }
-        Copy-Item -Path "$MsiExtractDir\*.jar" -Destination $StagingDir -Force
-        Copy-Item -Path "$MsiExtractDir\*.ico" -Destination $StagingDir -Force
-        Copy-Item -Path "$MsiExtractDir\*.gif" -Destination $StagingDir -Force
+        Get-ChildItem -Path $MsiExtractDir -Recurse -File -Include "*.jar","*.ico","*.gif" | ForEach-Object {
+            Copy-Item -Path $_.FullName -Destination $StagingDir -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 Write-Host "[OK] Resmi UYAP kutuphaneleri hazir." -ForegroundColor Green
@@ -95,10 +103,13 @@ if (-not (Test-Path "$StagingDir\akisp11.dll")) {
 Write-Host "[OK] E-Imza surucusu hazir." -ForegroundColor Green
 
 # ------------------------------------------------------------------------------
-# 4. Modernizer JAR, Batch/VBS ve Ozgun Baslaticilar (.exe)
+# 4. Modernizer JAR, E-İmza Agent, Batch/VBS ve Özgün Başlatıcılar (.exe)
 # ------------------------------------------------------------------------------
 Write-Host "`n[4/5] Baslaticilar ve modernizer derleniyor..." -ForegroundColor Yellow
-Copy-Item "$DistDir\uyap-modernizer.jar" "$StagingDir\" -Force
+Copy-Item "$DistDir\uyap-modernizer.jar" "$StagingDir\" -Force -ErrorAction SilentlyContinue
+if (Test-Path "$RootDir\build\uyap-pcsc-agent.jar") {
+    Copy-Item "$RootDir\build\uyap-pcsc-agent.jar" "$StagingDir\" -Force -ErrorAction SilentlyContinue
+}
 Copy-Item "$ScriptDir\bin\*" "$StagingDir\" -Force
 
 # C# ile yerel Windows GUI Calistirilabilir Dosyalari (.exe) derle
@@ -119,9 +130,8 @@ Write-Host "[OK] Baslatici .exe dosyalari hazir." -ForegroundColor Green
 # ------------------------------------------------------------------------------
 Write-Host "`n[5/5] Inno Setup ile Kurulum Dosyasi paketleniyor..." -ForegroundColor Yellow
 $IsccPaths = @(
-    "C:\Users\Can\AppData\Local\Programs\Inno Setup 6\ISCC.exe",
-    "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-    "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+    "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+    "C:\Program Files\Inno Setup 6\ISCC.exe",
     "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
 )
 $Iscc = $IsccPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
@@ -135,14 +145,10 @@ if ($LASTEXITCODE -ne 0) {
     throw "Inno Setup derleme hatasi olustu!"
 }
 
-# Dist içindeki exe'yi masaüstüne de kopyala
-$SetupExe = "$DistDir\UYAP-Editor-Modern-Setup-v2.1.0.exe"
+$SetupExe = "$DistDir\UYAP-Editor-Modern-Setup-v2.2.0.exe"
 if (Test-Path $SetupExe) {
-    $DesktopPath = [Environment]::GetFolderPath("Desktop")
-    Copy-Item $SetupExe "$DesktopPath\UYAP-Editor-Modern-Setup.exe" -Force
     Write-Host "`n========================================================" -ForegroundColor Green
     Write-Host " [BAŞARILI] Kurulum Paketi (.exe) Üretildi!" -ForegroundColor Green
     Write-Host " Dosya Konumu: $SetupExe" -ForegroundColor Cyan
-    Write-Host " Masaüstü Kopyası: $DesktopPath\UYAP-Editor-Modern-Setup.exe" -ForegroundColor Cyan
     Write-Host "========================================================" -ForegroundColor Green
 }

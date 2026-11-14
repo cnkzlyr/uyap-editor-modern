@@ -82,9 +82,15 @@ yazı tiplerini yalnızca sizin bilgisayarınıza kurar. Kaynak: https://sourcef
 EOF
 
 # ---------------------------------------------------------------- resmi UYAP Editör (Linux paketi)
-mkdir -p build/upstream
+mkdir -p build/upstream/deb
 indir_esnek() { [ -f "$2" ] || curl -fsSL --retry 3 -o "$2" "$1" || true; }
 indir_esnek "https://rayp.adalet.gov.tr/resimler/2/dosya/uyapeditor_5.4.20_amd64.zip" build/upstream/uyap_linux.zip
+if [ -s build/upstream/uyap_linux.zip ]; then
+  unzip -q -o build/upstream/uyap_linux.zip -d build/upstream/deb
+  if [ -f build/upstream/deb/uyapeditor_5.4.20_amd64.deb ]; then
+    ( cd build/upstream/deb && ( ar x uyapeditor_5.4.20_amd64.deb data.tar.xz 2>/dev/null || ar x uyapeditor_5.4.20_amd64.deb data.tar.gz 2>/dev/null || true ) && tar -xf data.tar.* -C . ./usr/share/UYAPEditor/ 2>/dev/null || true )
+  fi
+fi
 
 # ---------------------------------------------------------------- 1) bağımsız ajan
 cp dist/uyap-modernizer.jar release-assets/uyap-modernizer.jar
@@ -108,15 +114,25 @@ rm -rf pkg/windows && mkdir -p pkg/windows
 cp dist/uyap-modernizer.jar build/uyap-pcsc-agent.jar pkg/windows/
 cp platforms/windows/bin/* pkg/windows/
 cp platforms/windows/install.ps1 pkg/windows/
+cp -r platforms/windows/src pkg/windows/
+cp -r platforms/windows/icons pkg/windows/
+cp platforms/windows/icons/*.ico pkg/windows/ 2>/dev/null || true
+cp -r config pkg/windows/
+if [ -d build/upstream/deb/usr/share/UYAPEditor ]; then
+  cp -r build/upstream/deb/usr/share/UYAPEditor/*.jar pkg/windows/ 2>/dev/null || true
+fi
 jre "$JMODS_WIN" pkg/windows/jdk-14.0.2 ",jdk.crypto.mscapi"
 ( cd pkg && zip -q -r ../release-assets/uyap-editor-modern-windows-x64.zip windows )
 
 # ---------------------------------------------------------------- 4) macOS (Intel; Apple Silicon'da Rosetta 2)
 rm -rf pkg/macos && mkdir -p pkg/macos
-cp dist/uyap-modernizer.jar pkg/macos/
+cp dist/uyap-modernizer.jar build/uyap-pcsc-agent.jar pkg/macos/ 2>/dev/null || true
 cp -r platforms/macos/* pkg/macos/
 cp -r config pkg/macos/
 cp -r build/msfonts pkg/macos/fonts-ms
+if [ -d build/upstream/deb/usr/share/UYAPEditor ]; then
+  cp -r build/upstream/deb/usr/share/UYAPEditor/*.jar pkg/macos/ 2>/dev/null || true
+fi
 jre "$JMODS_MAC" pkg/macos/jdk-14.0.2
 ( cd pkg && zip -q -r -y ../release-assets/uyap-editor-modern-macos.zip macos )
 
